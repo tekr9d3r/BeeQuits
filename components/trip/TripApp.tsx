@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { viewAs } from "@/app/actions";
 import { Logo } from "@/components/Logo";
@@ -9,7 +10,13 @@ import { People } from "./People";
 import type { ChatMessage, Me, TripInfo, TripSnapshot } from "./types";
 
 const POLL_MS = 2500;
-type Tab = "chat" | "dashboard" | "people";
+type Tab = "chat" | "dashboard" | "people" | "insights";
+
+// AG Studio is heavy and browser-only, so it loads when the Insights tab is first opened.
+const Insights = dynamic(() => import("./Insights"), {
+  ssr: false,
+  loading: () => <p className="p-6 text-sm text-muted">Loading insights…</p>,
+});
 
 export function TripApp(props: {
   trip: TripInfo;
@@ -75,7 +82,7 @@ export function TripApp(props: {
       </header>
 
       <nav className="flex border-b border-line bg-card lg:hidden">
-        {(["chat", "dashboard", "people"] as const).map((t) => (
+        {(["chat", "dashboard", "people", "insights"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -85,8 +92,31 @@ export function TripApp(props: {
           </button>
         ))}
       </nav>
+      <nav className="hidden border-b border-line bg-card lg:block">
+        <div className="mx-auto flex max-w-6xl gap-6 px-4">
+          {(
+            [
+              ["chat", "Trip"],
+              ["insights", "Insights"],
+            ] as const
+          ).map(([t, label]) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`py-2.5 text-sm font-medium ${(tab === "insights") === (t === "insights") ? "border-b-2 border-ink" : "text-muted"}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </nav>
 
-      <div className="mx-auto grid min-h-0 w-full max-w-6xl flex-1 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-6 lg:px-4 lg:py-4">
+      {tab === "insights" && (
+        <div className="mx-auto min-h-0 w-full max-w-6xl flex-1 overflow-y-auto lg:p-4">
+          <Insights snapshot={snapshot} />
+        </div>
+      )}
+      <div className={`mx-auto ${tab === "insights" ? "hidden" : "grid"} min-h-0 w-full max-w-6xl flex-1 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-6 lg:px-4 lg:py-4`}>
         <section className={`min-h-0 flex-col ${tab === "chat" ? "flex" : "hidden"} lg:flex lg:rounded-2xl lg:border lg:border-line lg:bg-card`}>
           <Chat trip={trip} me={me} messages={messages} snapshot={snapshot} paypalClientId={props.paypalClientId} onSent={refresh} />
         </section>

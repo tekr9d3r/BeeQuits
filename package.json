@@ -13,6 +13,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0",
     "@electric-sql/pglite": "^0.5.13",
+    "ag-studio-react": "^3.0.0",
     "drizzle-orm": "^0.45.4",
     "iron-session": "^9.0.1",
     "nanoid": "^6.0.2",
