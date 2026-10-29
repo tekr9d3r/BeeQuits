@@ -107,7 +107,12 @@ async function toClaudeMessages(
   const out: Anthropic.MessageParam[] = [];
   for (const m of history) {
     if (m.memberId === null) {
-      if (out.length) out.push({ role: "assistant", content: m.content });
+      // Product cards were only visible in the UI; spell them out so "the second one" resolves.
+      const cards = (m.attachments ?? []).flatMap((a) => (a.type === "products" ? a.products : []));
+      const shown = cards.length
+        ? `\n\n[Product cards shown]\n${cards.map((p, i) => `${i + 1}. ${p.title} | ${p.price} ${p.currency}${p.approxTripCurrency ? ` (~${p.approxTripCurrency} EUR)` : ""} | ${p.merchant} | ${p.url}`).join("\n")}`
+        : "";
+      if (out.length) out.push({ role: "assistant", content: m.content + shown });
       continue;
     }
     const content: Anthropic.ContentBlockParam[] = [];

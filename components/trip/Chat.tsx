@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import { money } from "@/lib/format";
 import { PayButton, SettleUp } from "./SettleUp";
+import type { ProductCard as ProductCardData } from "@/lib/db/schema";
 import { CATEGORY_LABEL, type ChatMessage, type Me, type TripInfo, type TripSnapshot } from "./types";
 
 export function Chat({
@@ -27,6 +28,7 @@ export function Chat({
   const [pending, setPending] = useState<{ text: string; photoUrl: string | null; afterSeq: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
+  const input = useRef<HTMLTextAreaElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const nameOf = (id: string) => snapshot.members.find((m) => m.id === id)?.name ?? "Someone";
   // Pay buttons appear under the bee's latest settle-up message only.
@@ -66,6 +68,10 @@ export function Chat({
               snapshot={snapshot}
               trip={trip}
               settleUp={<SettleUp trip={trip} me={me} snapshot={snapshot} paypalClientId={paypalClientId} onPaid={onSent} />}
+              onBought={(product) => {
+                setText(`I bought "${product.title}" from ${product.merchant} for €`);
+                input.current?.focus();
+              }}
               payShare={(expenseId) => (
                 <PayShare expenseId={expenseId} trip={trip} me={me} snapshot={snapshot} paypalClientId={paypalClientId} onPaid={onSent} />
               )}
@@ -120,6 +126,7 @@ export function Chat({
             onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
           />
           <textarea
+            ref={input}
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
@@ -150,6 +157,7 @@ function Message({
   settleUp,
   showSettleUp,
   payShare,
+  onBought,
 }: {
   message: ChatMessage;
   mine: boolean;
@@ -159,6 +167,7 @@ function Message({
   settleUp: React.ReactNode;
   showSettleUp: boolean;
   payShare: (expenseId: string) => React.ReactNode;
+  onBought: (product: ProductCardData) => void;
 }) {
   const isAgent = message.memberId === null;
   return (
@@ -176,6 +185,9 @@ function Message({
             {payShare(a.expenseId)}
           </ExpenseCard>
         ) : null,
+      )}
+      {message.attachments?.map((a, i) =>
+        a.type === "products" ? <ProductCards key={i} products={a.products} onBought={onBought} /> : null,
       )}
       {showSettleUp && snapshot.settlements.length > 0 && <div className="mt-2 w-72 max-w-full">{settleUp}</div>}
     </Bubble>
@@ -242,6 +254,40 @@ function ExpenseCard({
         {CATEGORY_LABEL[e.category] ?? e.category} · paid by {name(e.paidBy)} · split {e.splitWith.map(name).join(", ")}
       </div>
       {children}
+    </div>
+  );
+}
+
+// Channel3 results. Prices come from US shops, so the trip-currency value is approximate.
+function ProductCards({ products, onBought }: { products: ProductCardData[]; onBought: (p: ProductCardData) => void }) {
+  return (
+    <div className="-mx-1 mt-2 flex snap-x gap-2 overflow-x-auto px-1 pb-1">
+      {products.map((p) => (
+        <div key={p.url} className="flex w-40 shrink-0 snap-start flex-col overflow-hidden rounded-xl border border-line bg-card">
+          {p.imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={p.imageUrl} alt="" className="aspect-square w-full bg-white object-contain p-2" />
+          ) : (
+            <div className="grid aspect-square place-items-center text-3xl">🛍️</div>
+          )}
+          <div className="flex flex-1 flex-col gap-1 p-2 text-xs">
+            <p className="line-clamp-2 font-medium leading-tight">{p.title}</p>
+            <p className="font-mono text-sm font-semibold">
+              {p.approxTripCurrency !== null ? `≈ €${p.approxTripCurrency.toFixed(0)}` : `${p.price} ${p.currency}`}
+              {p.approxTripCurrency !== null && <span className="ml-1 font-sans text-[11px] font-normal text-muted">${p.price}</span>}
+            </p>
+            <p className="truncate text-muted">{p.merchant}</p>
+            <div className="mt-auto flex gap-1 pt-1">
+              <a href={p.url} target="_blank" rel="noopener noreferrer" className="flex-1 rounded-full border border-ink py-1 text-center font-semibold">
+                View
+              </a>
+              <button onClick={() => onBought(p)} className="flex-1 rounded-full bg-honey py-1 font-semibold">
+                Bought
+              </button>
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

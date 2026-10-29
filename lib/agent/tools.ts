@@ -1,5 +1,6 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { CATEGORIES, addExpense, deleteExpense, getBalances, getBudgetStatus, setBudget, updateExpense } from "../ledger/service";
+import { searchProducts } from "../channel3";
 import { listSettlements, reopenTrip, startSettlement } from "../settlements";
 import { addPlaceholder } from "../trips";
 import type { MessageAttachment } from "../db/schema";
@@ -39,6 +40,7 @@ export const TOOLS: Anthropic.Tool[] = [
         category: { type: "string", enum: [...CATEGORIES] },
         description: { type: "string", description: "Short label, e.g. 'Spar groceries'." },
         split: splitSchema,
+        product_url: { type: "string", description: "Link of the product card, when the purchase came from search_gear." },
       },
       required: ["paid_by", "amount", "category", "description", "split"],
       additionalProperties: false,
@@ -93,6 +95,20 @@ export const TOOLS: Anthropic.Tool[] = [
       type: "object",
       properties: { category: { type: "string", enum: [...CATEGORIES] }, amount: { type: "number" } },
       required: ["category", "amount"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "search_gear",
+    description:
+      "Find gear to buy (helmet, goggles, snow chains, speaker...) in the Channel3 product catalog. The results are shown to the group as product cards with links. Prices are from US shops in USD, with an approximate EUR value.",
+    input_schema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "What to search for, e.g. 'ski helmet MIPS'." },
+        max_price_eur: { type: "number", description: "Upper price limit in EUR, if the group gave one or the budget implies one." },
+      },
+      required: ["query"],
       additionalProperties: false,
     },
   },
@@ -156,6 +172,7 @@ export async function runTool(name: string, input: any, ctx: ToolContext): Promi
         description: input.description,
         split: toSplit(input.split),
         receiptId: ctx.receiptId,
+        productUrl: input.product_url ?? null,
       });
       ctx.attachments.push({ type: "expense", expenseId: expense.id });
       return JSON.stringify({
@@ -189,6 +206,15 @@ export async function runTool(name: string, input: any, ctx: ToolContext): Promi
         balances: balances.map((b) => ({ member: ctx.memberName(b.memberId), paid: b.paidCents / 100, share: b.owedCents / 100, net: b.netCents / 100 })),
         settle_up: transfers.map((t) => `${ctx.memberName(t.from)} pays ${ctx.memberName(t.to)} ${(t.amountCents / 100).toFixed(2)}`),
       });
+    }
+    case "search_gear": {
+      const products = await searchProducts(input.query, input.max_price_eur);
+      if (products.length) ctx.attachments.push({ type: "products", products });
+      return JSON.stringify(
+        products.length
+          ? products.map((p, i) => ({ n: i + 1, title: p.title, price: `${p.price} ${p.currency}`, approx_eur: p.approxTripCurrency, shop: p.merchant, url: p.url }))
+          : { note: "No in-stock results. Try a broader search or a higher price." },
+      );
     }
     case "start_settlement": {
       const { settlements, alreadyStarted } = await startSettlement(ctx.tripId);
