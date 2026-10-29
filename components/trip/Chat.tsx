@@ -56,7 +56,7 @@ export function Chat({
 
   return (
     <>
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+      <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-4">
         <div className="flex flex-col gap-3">
           {messages.map((m) => (
             <Message
@@ -198,10 +198,10 @@ function Bubble({
   children: React.ReactNode;
 }) {
   return (
-    <div className={`flex max-w-[85%] flex-col ${mine ? "self-end items-end" : "self-start items-start"}`}>
+    <div className={`flex min-w-0 max-w-[85%] flex-col ${mine ? "self-end items-end" : "self-start items-start"}`}>
       {author && <span className="mb-0.5 px-1 text-xs text-muted">{agent ? "🐝 Bee" : author}</span>}
       <div
-        className={`whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-[15px] leading-snug ${
+        className={`min-w-0 max-w-full whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-[15px] leading-snug ${
           mine ? "bg-ink text-paper" : agent ? "bg-honey-soft" : "border border-line bg-card"
         }`}
       >
@@ -251,9 +251,10 @@ function ExpenseCard({
 }
 
 // Channel3 results. Prices come from US shops, so the trip-currency value is approximate.
+// The row scrolls sideways on its own; max-w-full keeps it from widening the bubble or the page.
 function ProductCards({ products }: { products: ProductCardData[] }) {
   return (
-    <div className="-mx-1 mt-2 flex snap-x gap-2 overflow-x-auto px-1 pb-1">
+    <div className="mt-2 flex w-full max-w-full snap-x snap-mandatory gap-2 overflow-x-auto overscroll-x-contain pb-1">
       {products.map((p) => (
         <div key={p.url} className="flex w-40 shrink-0 snap-start flex-col overflow-hidden rounded-xl border border-line bg-card">
           {p.imageUrl ? (
