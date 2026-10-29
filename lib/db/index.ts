@@ -10,7 +10,7 @@ function connect(): PostgresJsDatabase<typeof schema> {
   if (process.env.DATABASE_URL) {
     return drizzlePostgres(postgres(process.env.DATABASE_URL, { max: 5 }), { schema, casing: "snake_case" });
   }
-  const local = drizzlePglite(new PGlite(".pglite"), { schema, casing: "snake_case" });
+  const local = drizzlePglite(new PGlite(process.env.PGLITE_DIR ?? ".pglite"), { schema, casing: "snake_case" });
   return local as unknown as PostgresJsDatabase<typeof schema>;
 }
 

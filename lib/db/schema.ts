@@ -12,6 +12,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
 
 // All money is integer cents in the trip currency.
 
@@ -149,3 +150,17 @@ export const webhookEvents = pgTable("webhook_events", {
   receivedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   processedAt: timestamp({ withTimezone: true }),
 });
+
+export const tripMembersRelations = relations(tripMembers, ({ one }) => ({
+  user: one(users, { fields: [tripMembers.userId], references: [users.id] }),
+  trip: one(trips, { fields: [tripMembers.tripId], references: [trips.id] }),
+}));
+
+export const expensesRelations = relations(expenses, ({ many, one }) => ({
+  splits: many(expenseSplits),
+  payer: one(tripMembers, { fields: [expenses.paidBy], references: [tripMembers.id] }),
+}));
+
+export const expenseSplitsRelations = relations(expenseSplits, ({ one }) => ({
+  expense: one(expenses, { fields: [expenseSplits.expenseId], references: [expenses.id] }),
+}));
