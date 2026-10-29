@@ -28,6 +28,10 @@ services:
         sync: false
       - key: CHANNEL3_API_KEY
         sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: DEMO_MODE
+        value: "true"
 
 databases:
   - name: beequits-db

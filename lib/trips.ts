@@ -2,12 +2,12 @@ import { and, asc, eq, isNull } from "drizzle-orm";
 import { customAlphabet } from "nanoid";
 import { db, schema } from "./db";
 
-const { trips, tripMembers, users } = schema;
+const { trips, tripMembers } = schema;
 const newId = customAlphabet("23456789abcdefghjkmnpqrstuvwxyz", 10);
 
 export type Trip = typeof trips.$inferSelect;
 export type Member = typeof tripMembers.$inferSelect;
-export type MemberWithUser = Member & { user: typeof users.$inferSelect | null };
+export type MemberWithUser = Member & { user: typeof schema.users.$inferSelect | null };
 
 export async function createTrip(input: {
   name: string;
@@ -101,4 +101,8 @@ export async function renameMember(memberId: string, displayName: string) {
 
 function firstName(name: string) {
   return name.split(/\s+/)[0] || name;
+}
+
+export async function getTripById(id: string) {
+  return (await db.query.trips.findFirst({ where: eq(trips.id, id) })) ?? null;
 }
