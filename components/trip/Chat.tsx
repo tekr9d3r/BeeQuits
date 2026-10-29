@@ -2,6 +2,7 @@
 
 import { Fragment, useEffect, useRef, useState } from "react";
 import { money } from "@/lib/format";
+import { SettleUp } from "./SettleUp";
 import { CATEGORY_LABEL, type ChatMessage, type Me, type TripInfo, type TripSnapshot } from "./types";
 
 export function Chat({
@@ -9,12 +10,14 @@ export function Chat({
   me,
   messages,
   snapshot,
+  paypalClientId,
   onSent,
 }: {
   trip: TripInfo;
   me: Me;
   messages: ChatMessage[];
   snapshot: TripSnapshot;
+  paypalClientId: string;
   onSent: () => Promise<void>;
 }) {
   const [text, setText] = useState("");
@@ -26,6 +29,8 @@ export function Chat({
   const bottom = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const nameOf = (id: string) => snapshot.members.find((m) => m.id === id)?.name ?? "Someone";
+  // Pay buttons appear under the bee's latest settle-up message only.
+  const lastSettleUpSeq = messages.findLast((m) => m.attachments?.some((a) => a.type === "settle_up"))?.seq;
   const echoed = pending && messages.some((m) => m.seq > pending.afterSeq && m.memberId === me.memberId);
 
   useEffect(() => {
@@ -53,7 +58,16 @@ export function Chat({
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
         <div className="flex flex-col gap-3">
           {messages.map((m) => (
-            <Message key={m.seq} message={m} mine={m.memberId === me.memberId} author={m.memberId ? nameOf(m.memberId) : null} snapshot={snapshot} trip={trip} />
+            <Message
+              key={m.seq}
+              message={m}
+              mine={m.memberId === me.memberId}
+              author={m.memberId ? nameOf(m.memberId) : null}
+              snapshot={snapshot}
+              trip={trip}
+              settleUp={<SettleUp trip={trip} me={me} snapshot={snapshot} paypalClientId={paypalClientId} onPaid={onSent} />}
+              showSettleUp={m.seq === lastSettleUpSeq}
+            />
           ))}
           {pending && (
             <>
@@ -130,12 +144,16 @@ function Message({
   author,
   snapshot,
   trip,
+  settleUp,
+  showSettleUp,
 }: {
   message: ChatMessage;
   mine: boolean;
   author: string | null;
   snapshot: TripSnapshot;
   trip: TripInfo;
+  settleUp: React.ReactNode;
+  showSettleUp: boolean;
 }) {
   const isAgent = message.memberId === null;
   return (
@@ -150,6 +168,7 @@ function Message({
       {message.attachments?.map((a, i) =>
         a.type === "expense" ? <ExpenseCard key={i} expenseId={a.expenseId} snapshot={snapshot} trip={trip} /> : null,
       )}
+      {showSettleUp && snapshot.settlements.length > 0 && <div className="mt-2 w-72 max-w-full">{settleUp}</div>}
     </Bubble>
   );
 }

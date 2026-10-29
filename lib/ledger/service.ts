@@ -99,15 +99,25 @@ export async function listExpenses(tripId: string) {
   });
 }
 
+// Balances after expenses and any settle-up payments already made.
 export async function getBalances(tripId: string) {
-  const [members, ledger] = await Promise.all([
+  const [members, ledger, paid] = await Promise.all([
     db.query.tripMembers.findMany({ where: eq(tripMembers.tripId, tripId) }),
     listExpenses(tripId),
+    db.query.settlements.findMany({
+      where: and(eq(schema.settlements.tripId, tripId), eq(schema.settlements.status, "captured")),
+    }),
   ]);
   const balances = computeBalances(
     members.map((m) => m.id),
     ledger.map((e) => ({ paidBy: e.paidBy, amountCents: e.amountCents, splits: e.splits })),
   );
+  for (const p of paid) {
+    const from = balances.find((b) => b.memberId === p.fromMember);
+    const to = balances.find((b) => b.memberId === p.toMember);
+    if (from) from.netCents += p.amountCents;
+    if (to) to.netCents -= p.amountCents;
+  }
   const totalCents = ledger.reduce((a, e) => a + e.amountCents, 0);
   return { members, balances, totalCents, transfers: minimalTransfers(balances) };
 }

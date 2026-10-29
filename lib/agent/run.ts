@@ -37,7 +37,7 @@ export async function runAgent(trip: Trip) {
     pending.flatMap((m) => m.attachments ?? []).findLast((a) => a.type === "receipt")?.receiptId ?? null;
 
   const state = [
-    `Trip: ${trip.name} (currency ${trip.currency}${trip.startDate ? `, ${trip.startDate} to ${trip.endDate}` : ""})`,
+    `Trip: ${trip.name} (currency ${trip.currency}${trip.startDate ? `, ${trip.startDate} to ${trip.endDate}` : ""}), status: ${trip.status}`,
     `Members:\n${members.map((m) => `- ${m.displayName} (id ${m.id})${m.userId ? "" : " [not joined yet]"}`).join("\n")}`,
     `Recent expenses:\n${
       ledger
@@ -53,7 +53,7 @@ export async function runAgent(trip: Trip) {
   if (!messages) return null;
 
   const attachments: MessageAttachment[] = [];
-  const ctx = { tripId: trip.id, receiptId, memberName, attachments };
+  const ctx = { tripId: trip.id, tripStatus: trip.status, receiptId, memberName, attachments };
   let reply = "";
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {

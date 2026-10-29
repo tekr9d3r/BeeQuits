@@ -1,5 +1,6 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { CATEGORIES, addExpense, deleteExpense, getBalances, getBudgetStatus, setBudget, updateExpense } from "../ledger/service";
+import { listSettlements, reopenTrip, startSettlement } from "../settlements";
 import { addPlaceholder } from "../trips";
 import type { MessageAttachment } from "../db/schema";
 
@@ -96,6 +97,22 @@ export const TOOLS: Anthropic.Tool[] = [
     },
   },
   {
+    name: "start_settlement",
+    description:
+      "Settle up: locks the trip and creates the minimal set of PayPal transfers. Each debtor then gets a Pay button in the app. Use when the group says they want to settle.",
+    input_schema: { type: "object", properties: {}, additionalProperties: false },
+  },
+  {
+    name: "get_settlement_status",
+    description: "Which settle-up transfers are paid and which are still open.",
+    input_schema: { type: "object", properties: {}, additionalProperties: false },
+  },
+  {
+    name: "reopen_trip",
+    description: "Cancel the settle-up so expenses can be changed again. Only possible before anyone has paid.",
+    input_schema: { type: "object", properties: {}, additionalProperties: false },
+  },
+  {
     name: "get_budget_status",
     description: "Spent vs budget per category.",
     input_schema: { type: "object", properties: {}, additionalProperties: false },
@@ -116,6 +133,7 @@ function toSplit(split: SplitInput) {
 
 export type ToolContext = {
   tripId: string;
+  tripStatus: "active" | "settling" | "closed";
   receiptId: string | null;
   memberName: (id: string) => string;
   attachments: MessageAttachment[];
@@ -124,6 +142,10 @@ export type ToolContext = {
 // Runs one tool call. Errors are returned to the model as text so it can recover or ask.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function runTool(name: string, input: any, ctx: ToolContext): Promise<string> {
+  const changesLedger = ["add_expense", "update_expense", "delete_expense"].includes(name);
+  if (changesLedger && ctx.tripStatus !== "active") {
+    throw new Error("The trip is settling up, so the ledger is frozen. Use reopen_trip first if nobody has paid yet.");
+  }
   switch (name) {
     case "add_expense": {
       const expense = await addExpense({
@@ -168,6 +190,29 @@ export async function runTool(name: string, input: any, ctx: ToolContext): Promi
         settle_up: transfers.map((t) => `${ctx.memberName(t.from)} pays ${ctx.memberName(t.to)} ${(t.amountCents / 100).toFixed(2)}`),
       });
     }
+    case "start_settlement": {
+      const { settlements, alreadyStarted } = await startSettlement(ctx.tripId);
+      if (settlements.length) ctx.tripStatus = "settling";
+      if (settlements.length) ctx.attachments.push({ type: "settle_up" });
+      return JSON.stringify({
+        already_started: alreadyStarted,
+        transfers: settlements.map((s) => `${ctx.memberName(s.fromMember)} pays ${ctx.memberName(s.toMember)} ${(s.amountCents / 100).toFixed(2)} (${s.status})`),
+        note: settlements.length ? "Each payer now sees a PayPal Pay button in the app." : "Everyone is already even.",
+      });
+    }
+    case "get_settlement_status":
+      return JSON.stringify(
+        (await listSettlements(ctx.tripId)).map((s) => ({
+          from: ctx.memberName(s.fromMember),
+          to: ctx.memberName(s.toMember),
+          amount: s.amountCents / 100,
+          status: s.status === "captured" ? "paid" : "open",
+        })),
+      );
+    case "reopen_trip":
+      await reopenTrip(ctx.tripId);
+      ctx.tripStatus = "active";
+      return JSON.stringify({ ok: true, note: "The ledger is open again." });
     case "set_budget":
       await setBudget(ctx.tripId, input.category, cents(input.amount));
       return JSON.stringify({ ok: true });

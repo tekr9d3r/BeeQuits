@@ -16,6 +16,7 @@ export function TripApp(props: {
   me: Me;
   invite: { url: string; qr: string };
   demoCrew: { id: string; name: string }[];
+  paypalClientId: string;
   initialMessages: ChatMessage[];
   initialSnapshot: TripSnapshot;
 }) {
@@ -74,11 +75,11 @@ export function TripApp(props: {
 
       <div className="mx-auto grid min-h-0 w-full max-w-6xl flex-1 lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-6 lg:px-4 lg:py-4">
         <section className={`min-h-0 flex-col ${tab === "chat" ? "flex" : "hidden"} lg:flex lg:rounded-2xl lg:border lg:border-line lg:bg-card`}>
-          <Chat trip={trip} me={me} messages={messages} snapshot={snapshot} onSent={refresh} />
+          <Chat trip={trip} me={me} messages={messages} snapshot={snapshot} paypalClientId={props.paypalClientId} onSent={refresh} />
         </section>
         <aside className={`min-h-0 overflow-y-auto ${tab === "chat" ? "hidden" : "block"} lg:block`}>
           <div className={tab === "people" ? "hidden lg:block" : ""}>
-            <Dashboard trip={trip} me={me} snapshot={snapshot} />
+            <Dashboard trip={trip} me={me} snapshot={snapshot} paypalClientId={props.paypalClientId} onPaid={refresh} />
           </div>
           <div className={tab === "dashboard" ? "hidden lg:block" : "lg:mt-6"}>
             <People trip={trip} me={me} myName={myName} invite={props.invite} snapshot={snapshot} onChange={refresh} />

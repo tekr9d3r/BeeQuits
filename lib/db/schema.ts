@@ -118,6 +118,7 @@ export type MessageAttachment =
   | { type: "receipt"; receiptId: string }
   | { type: "expense"; expenseId: string }
   | { type: "settlement"; settlementId: string }
+  | { type: "settle_up" }
   | { type: "products"; products: ProductCard[] };
 
 export type ProductCard = {

@@ -1,0 +1,133 @@
+import { and, asc, eq, inArray } from "drizzle-orm";
+import { db, schema } from "./db";
+import { money } from "./format";
+import { getBalances } from "./ledger/service";
+import { paypal } from "./paypal/client";
+import { listMembers } from "./trips";
+
+const { settlements, trips, tripMembers } = schema;
+export type Settlement = typeof settlements.$inferSelect;
+
+export async function listSettlements(tripId: string) {
+  return db.query.settlements.findMany({ where: eq(settlements.tripId, tripId), orderBy: asc(settlements.createdAt) });
+}
+
+// Locks the trip and turns the minimal transfers into settlements. Each one is paid
+// directly from debtor to creditor on PayPal, so every creditor needs a PayPal login.
+export async function startSettlement(tripId: string) {
+  const existing = await listSettlements(tripId);
+  if (existing.length) return { settlements: existing, alreadyStarted: true as const };
+
+  const [{ transfers }, members] = await Promise.all([getBalances(tripId), listMembers(tripId)]);
+  if (transfers.length === 0) return { settlements: [], alreadyStarted: false as const };
+
+  const notJoined = [...new Set(transfers.map((t) => t.to))]
+    .map((id) => members.find((m) => m.id === id)!)
+    .filter((m) => !m.user);
+  if (notJoined.length) {
+    throw new Error(
+      `${notJoined.map((m) => m.displayName).join(" and ")} must join the trip with PayPal before they can be paid back.`,
+    );
+  }
+
+  const rows = await db.transaction(async (tx) => {
+    await tx.update(trips).set({ status: "settling", lockedAt: new Date() }).where(eq(trips.id, tripId));
+    return tx
+      .insert(settlements)
+      .values(transfers.map((t) => ({ tripId, fromMember: t.from, toMember: t.to, amountCents: t.amountCents })))
+      .returning();
+  });
+  return { settlements: rows, alreadyStarted: false as const };
+}
+
+// Cancels a settle-up nobody has paid into yet, e.g. when someone forgot an expense.
+export async function reopenTrip(tripId: string) {
+  const rows = await listSettlements(tripId);
+  if (rows.some((s) => s.status === "captured")) throw new Error("Payments have already been made, so the trip can't be reopened.");
+  await db.transaction(async (tx) => {
+    await tx.delete(settlements).where(eq(settlements.tripId, tripId));
+    await tx.update(trips).set({ status: "active", lockedAt: null }).where(eq(trips.id, tripId));
+  });
+}
+
+type PayPalOrder = { id: string; status: string };
+
+// Creates the PayPal order for one transfer: the signed-in debtor pays, the creditor's
+// PayPal email is the payee. BeeQuits is never in the money flow.
+export async function createSettlementOrder(settlementId: string, payerMemberId: string) {
+  const s = await db.query.settlements.findFirst({ where: eq(settlements.id, settlementId) });
+  if (!s || s.fromMember !== payerMemberId) throw new Error("This payment isn't yours to make");
+  if (s.status === "captured") throw new Error("Already paid");
+  const [trip, creditor] = await Promise.all([
+    db.query.trips.findFirst({ where: eq(trips.id, s.tripId) }),
+    db.query.tripMembers.findFirst({ where: eq(tripMembers.id, s.toMember), with: { user: true } }),
+  ]);
+  if (!creditor?.user) throw new Error("The person you're paying hasn't joined with PayPal yet");
+
+  const order = await paypal<PayPalOrder>("POST", "/v2/checkout/orders", {
+    intent: "CAPTURE",
+    purchase_units: [
+      {
+        reference_id: s.id,
+        custom_id: s.id,
+        description: `BeeQuits settle-up: ${trip!.name}`.slice(0, 127),
+        amount: { currency_code: trip!.currency, value: (s.amountCents / 100).toFixed(2) },
+        payee: { email_address: creditor.user.paypalEmail },
+      },
+    ],
+  });
+  await db.update(settlements).set({ paypalOrderId: order.id, status: "pending" }).where(eq(settlements.id, s.id));
+  return order.id;
+}
+
+type CaptureResponse = {
+  status: string;
+  purchase_units: { payments?: { captures?: { id: string; status: string }[] } }[];
+};
+
+export async function captureSettlementOrder(settlementId: string, payerMemberId: string) {
+  const s = await db.query.settlements.findFirst({ where: eq(settlements.id, settlementId) });
+  if (!s?.paypalOrderId || s.fromMember !== payerMemberId) throw new Error("Nothing to capture");
+  if (s.status === "captured") return s;
+  const result = await paypal<CaptureResponse>("POST", `/v2/checkout/orders/${s.paypalOrderId}/capture`, {});
+  const capture = result.purchase_units[0]?.payments?.captures?.[0];
+  if (capture?.status === "COMPLETED") await markCaptured(s.paypalOrderId, capture.id);
+  else await db.update(settlements).set({ status: "approved" }).where(eq(settlements.id, s.id));
+  return db.query.settlements.findFirst({ where: eq(settlements.id, s.id) });
+}
+
+// Called from both the capture response and the webhook; only the first call posts to the chat.
+export async function markCaptured(paypalOrderId: string, captureId: string) {
+  const [updated] = await db
+    .update(settlements)
+    .set({ status: "captured", paypalCaptureId: captureId, paidAt: new Date() })
+    .where(and(eq(settlements.paypalOrderId, paypalOrderId), inArray(settlements.status, ["pending", "approved", "failed"])))
+    .returning();
+  if (!updated) return;
+
+  const [members, trip, all] = await Promise.all([
+    listMembers(updated.tripId),
+    db.query.trips.findFirst({ where: eq(trips.id, updated.tripId) }),
+    listSettlements(updated.tripId),
+  ]);
+  const name = (id: string) => members.find((m) => m.id === id)?.displayName ?? "Someone";
+  await db.insert(schema.messages).values({
+    tripId: updated.tripId,
+    content: `✅ ${name(updated.fromMember)} paid ${name(updated.toMember)} ${money(updated.amountCents, trip!.currency)} via PayPal.`,
+    attachments: [{ type: "settlement", settlementId: updated.id }],
+  });
+  if (all.every((s) => s.status === "captured")) {
+    await db.update(trips).set({ status: "closed" }).where(eq(trips.id, updated.tripId));
+    await db.insert(schema.messages).values({
+      tripId: updated.tripId,
+      content: "🎉 Everyone is quits! All payments went straight between you on PayPal. Thanks for flying with BeeQuits 🐝",
+    });
+  }
+}
+
+export async function markFailed(paypalOrderId: string) {
+  await db
+    .update(settlements)
+    .set({ status: "failed" })
+    .where(and(eq(settlements.paypalOrderId, paypalOrderId), inArray(settlements.status, ["pending", "approved"])));
+}

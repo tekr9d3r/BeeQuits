@@ -42,6 +42,7 @@ export default async function TripPage({ params }: { params: Promise<{ publicId:
       }}
       me={{ memberId: me.id, role: me.role }}
       invite={invite}
+      paypalClientId={process.env.PAYPAL_CLIENT_ID!}
       demoCrew={members.filter((m) => m.userId).map((m) => ({ id: m.id, name: m.displayName }))}
       initialMessages={JSON.parse(JSON.stringify(messages))}
       initialSnapshot={snapshot}

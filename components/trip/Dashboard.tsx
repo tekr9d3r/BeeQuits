@@ -1,10 +1,23 @@
 "use client";
 
 import { money } from "@/lib/format";
+import { SettleUp } from "./SettleUp";
 import { CATEGORY_LABEL, type Me, type TripInfo, type TripSnapshot } from "./types";
 
 // First version: plain components. AG Grid / AG Studio widgets replace parts of this in Phase 3.
-export function Dashboard({ trip, me, snapshot }: { trip: TripInfo; me: Me; snapshot: TripSnapshot }) {
+export function Dashboard({
+  trip,
+  me,
+  snapshot,
+  paypalClientId,
+  onPaid,
+}: {
+  trip: TripInfo;
+  me: Me;
+  snapshot: TripSnapshot;
+  paypalClientId: string;
+  onPaid: () => Promise<void>;
+}) {
   const fmt = (c: number) => money(c, trip.currency);
   const name = (id: string) => snapshot.members.find((m) => m.id === id)?.name ?? "?";
   const mine = snapshot.members.find((m) => m.id === me.memberId);
@@ -41,8 +54,10 @@ export function Dashboard({ trip, me, snapshot }: { trip: TripInfo; me: Me; snap
         </ul>
       </Card>
 
-      <Card title="Settle up">
-        {snapshot.transfers.length === 0 ? (
+      <Card title={snapshot.status === "closed" ? "Settled 🎉" : "Settle up"}>
+        {snapshot.settlements.length > 0 ? (
+          <SettleUp trip={trip} me={me} snapshot={snapshot} paypalClientId={paypalClientId} onPaid={onPaid} />
+        ) : snapshot.transfers.length === 0 ? (
           <p className="text-sm text-muted">Everyone is quits. 🐝</p>
         ) : (
           <ul className="flex flex-col gap-2">
@@ -56,7 +71,9 @@ export function Dashboard({ trip, me, snapshot }: { trip: TripInfo; me: Me; snap
             ))}
           </ul>
         )}
-        <p className="mt-3 text-xs text-muted">Say &ldquo;let&apos;s settle&rdquo; in the chat when the trip is over. Payments go directly between you on PayPal.</p>
+        {snapshot.settlements.length === 0 && (
+          <p className="mt-3 text-xs text-muted">Say &ldquo;let&apos;s settle&rdquo; in the chat when the trip is over. Payments go directly between you on PayPal.</p>
+        )}
       </Card>
 
       <Card title="Budget">
