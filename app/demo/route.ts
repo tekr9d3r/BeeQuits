@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { ensureDemoTrip } from "@/lib/demo";
 import { getSession } from "@/lib/session";
+import { publicUrl } from "@/lib/auth";
 
 // Opens the seeded demo trip signed in as Jack (the organizer).
 export async function GET(request: Request) {
@@ -11,5 +12,5 @@ export async function GET(request: Request) {
   const session = await getSession();
   session.userId = jack!.id;
   await session.save();
-  return Response.redirect(new URL(`/t/${trip.publicId}`, request.url));
+  return Response.redirect(publicUrl(`/t/${trip.publicId}`, request));
 }

@@ -12,3 +12,11 @@ export async function currentUser() {
 export function safeReturnTo(value: string | null | undefined): string {
   return value && value.startsWith("/") && !value.startsWith("//") ? value : "/";
 }
+
+// Behind Render's proxy request.url is the internal address (https://localhost:10000),
+// so redirects are built from the forwarded host instead.
+export function publicUrl(path: string, request: Request): URL {
+  const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+  const proto = request.headers.get("x-forwarded-proto") ?? new URL(request.url).protocol.replace(":", "");
+  return new URL(path, host ? `${proto}://${host}` : request.url);
+}

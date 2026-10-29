@@ -1,4 +1,4 @@
-import { safeReturnTo } from "@/lib/auth";
+import { publicUrl, safeReturnTo } from "@/lib/auth";
 import { db, schema } from "@/lib/db";
 import { exchangeCode } from "@/lib/paypal/identity";
 import { getSession } from "@/lib/session";
@@ -26,5 +26,5 @@ export async function GET(request: Request) {
   session.oauthState = undefined;
   session.returnTo = undefined;
   await session.save();
-  return Response.redirect(new URL(returnTo, url));
+  return Response.redirect(publicUrl(returnTo, request));
 }

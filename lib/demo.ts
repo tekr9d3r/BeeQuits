@@ -32,7 +32,12 @@ const EXPENSES: [Key, number, Category, string, Key[] | null, string, string][] 
 
 export async function ensureDemoTrip() {
   const existing = await db.query.trips.findFirst({ where: eq(schema.trips.isDemo, true) });
-  if (existing) return existing;
+  if (existing) {
+    const seeded = await db.query.messages.findFirst({ where: eq(schema.messages.tripId, existing.id) });
+    if (seeded) return existing;
+    // A previous seed died halfway: start over.
+    await db.delete(schema.trips).where(eq(schema.trips.id, existing.id));
+  }
 
   const users = new Map<Key, typeof schema.users.$inferSelect>();
   for (const c of CREW) {
