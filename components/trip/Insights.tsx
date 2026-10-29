@@ -2,7 +2,7 @@
 
 import { AgStudio } from "ag-studio-react";
 import { AgStudioLicenseManager, studioTheme, type AgReportState } from "ag-studio";
-import { useMemo } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import { CATEGORY_LABEL, type TripSnapshot } from "./types";
 
 // Without a key Studio runs with a trial watermark.
@@ -28,55 +28,103 @@ const theme = studioTheme.withParams({
 const f = (id: string, aggregation?: "sum" | "count") => ({ id, ...(aggregation && { aggregation }) });
 const title = (text: string) => ({ title: { enabled: true, text } });
 
-// A finished dashboard shipped as state, so it opens ready-made in view mode. Layout grid is 24 wide.
-const REPORT: AgReportState = {
-  selectedPageId: "insights",
-  panels: { filters: { collapsed: true } },
-  pages: [
-    {
-      id: "insights",
-      layout: { minWidth: 760, rowHeight: 24, backgroundColor: "#fffbf0", widgetBorderColor: "#ede6d3", widgetBorderRadius: 16 },
-      widgets: {
-        total: { type: "value", dataMapping: { value: [f("expenses.amount", "sum")] }, format: title("Group spent (€)") },
-        count: { type: "value", dataMapping: { value: [f("expenses.description", "count")] }, format: title("Expenses logged") },
-        budget: { type: "value", dataMapping: { value: [f("budget.budget", "sum")] }, format: title("Total budget (€)") },
-        byCategory: {
-          type: "donut-chart",
-          dataMapping: { categoryKey: [f("expenses.category")], valueKey: [f("expenses.amount", "sum")] },
-          format: title("Where the money went"),
-        },
-        budgetVsSpent: {
-          type: "column-chart-grouped",
-          dataMapping: { categoryKey: [f("budget.category")], valueKey: [f("budget.budget", "sum"), f("budget.spent", "sum")] },
-          format: title("Budget vs spent"),
-        },
-        people: {
-          type: "bar-chart-grouped",
-          dataMapping: { categoryKey: [f("people.member")], valueKey: [f("people.paid", "sum"), f("people.share", "sum")] },
-          format: title("Paid vs fair share"),
-        },
-        ledger: {
-          type: "grid",
-          dataMapping: {
-            cols: [f("expenses.date"), f("expenses.description"), f("expenses.category"), f("expenses.paidBy"), f("expenses.people"), f("expenses.amount")],
-          },
-          format: title("All expenses"),
-        },
-      },
-      widgetLayout: {
-        total: { xTrack: 0, yTrack: 0, xSpan: 8, ySpan: 4 },
-        count: { xTrack: 8, yTrack: 0, xSpan: 8, ySpan: 4 },
-        budget: { xTrack: 16, yTrack: 0, xSpan: 8, ySpan: 4 },
-        byCategory: { xTrack: 0, yTrack: 4, xSpan: 10, ySpan: 12 },
-        budgetVsSpent: { xTrack: 10, yTrack: 4, xSpan: 14, ySpan: 12 },
-        people: { xTrack: 0, yTrack: 16, xSpan: 10, ySpan: 12 },
-        ledger: { xTrack: 10, yTrack: 16, xSpan: 14, ySpan: 12 },
-      },
-    },
-  ],
+type Layout = Record<string, { xTrack: number; yTrack: number; xSpan: number; ySpan: number }>;
+
+// Desktop: two columns of charts on the 24-track grid.
+const DESKTOP_LAYOUT: Layout = {
+  total: { xTrack: 0, yTrack: 0, xSpan: 8, ySpan: 4 },
+  count: { xTrack: 8, yTrack: 0, xSpan: 8, ySpan: 4 },
+  budget: { xTrack: 16, yTrack: 0, xSpan: 8, ySpan: 4 },
+  byCategory: { xTrack: 0, yTrack: 4, xSpan: 10, ySpan: 12 },
+  budgetVsSpent: { xTrack: 10, yTrack: 4, xSpan: 14, ySpan: 12 },
+  people: { xTrack: 0, yTrack: 16, xSpan: 10, ySpan: 12 },
+  ledger: { xTrack: 10, yTrack: 16, xSpan: 14, ySpan: 12 },
 };
 
+// Phone: one column, every widget full width, stacked top to bottom.
+function stacked(heights: [string, number][]): Layout {
+  let y = 0;
+  return Object.fromEntries(
+    heights.map(([id, ySpan]) => {
+      const cell = { xTrack: 0, yTrack: y, xSpan: 24, ySpan };
+      y += ySpan;
+      return [id, cell];
+    }),
+  );
+}
+const MOBILE_LAYOUT = stacked([
+  ["total", 4],
+  ["count", 4],
+  ["budget", 4],
+  ["byCategory", 14],
+  ["budgetVsSpent", 14],
+  ["people", 12],
+  ["ledger", 18],
+]);
+
+// A finished dashboard shipped as state, so it opens ready-made in view mode.
+function buildReport(mobile: boolean): AgReportState {
+  const ledgerCols = mobile
+    ? [f("expenses.description"), f("expenses.paidBy"), f("expenses.amount")]
+    : [f("expenses.date"), f("expenses.description"), f("expenses.category"), f("expenses.paidBy"), f("expenses.people"), f("expenses.amount")];
+  return {
+    selectedPageId: "insights",
+    panels: { filters: { collapsed: true } },
+    pages: [
+      {
+        id: "insights",
+        layout: {
+          minWidth: mobile ? 0 : 760,
+          rowHeight: 24,
+          backgroundColor: "#fffbf0",
+          widgetBorderColor: "#ede6d3",
+          widgetBorderRadius: 16,
+        },
+        widgets: {
+          total: { type: "value", dataMapping: { value: [f("expenses.amount", "sum")] }, format: title("Group spent (€)") },
+          count: { type: "value", dataMapping: { value: [f("expenses.description", "count")] }, format: title("Expenses logged") },
+          budget: { type: "value", dataMapping: { value: [f("budget.budget", "sum")] }, format: title("Total budget (€)") },
+          byCategory: {
+            type: "donut-chart",
+            dataMapping: { categoryKey: [f("expenses.category")], valueKey: [f("expenses.amount", "sum")] },
+            format: title("Where the money went"),
+          },
+          budgetVsSpent: {
+            type: "column-chart-grouped",
+            dataMapping: { categoryKey: [f("budget.category")], valueKey: [f("budget.budget", "sum"), f("budget.spent", "sum")] },
+            format: title("Budget vs spent"),
+          },
+          people: {
+            type: "bar-chart-grouped",
+            dataMapping: { categoryKey: [f("people.member")], valueKey: [f("people.paid", "sum"), f("people.share", "sum")] },
+            format: title("Paid vs fair share"),
+          },
+          ledger: { type: "grid", dataMapping: { cols: ledgerCols }, format: title("All expenses") },
+        },
+        widgetLayout: mobile ? MOBILE_LAYOUT : DESKTOP_LAYOUT,
+      },
+    ],
+  };
+}
+
+const MOBILE_QUERY = "(max-width: 767px)";
+
+// Studio only reads initialState on mount, so crossing the breakpoint remounts it with the other layout.
+function useIsMobile() {
+  return useSyncExternalStore(
+    (onChange) => {
+      const mq = window.matchMedia(MOBILE_QUERY);
+      mq.addEventListener("change", onChange);
+      return () => mq.removeEventListener("change", onChange);
+    },
+    () => window.matchMedia(MOBILE_QUERY).matches,
+    () => false,
+  );
+}
+
 export default function Insights({ snapshot }: { snapshot: TripSnapshot }) {
+  const mobile = useIsMobile();
+  const report = useMemo(() => buildReport(mobile), [mobile]);
   // Polling hands us a new snapshot object every few seconds; only rebuild the data when it changed.
   const key = JSON.stringify([snapshot.expenses, snapshot.budget, snapshot.members]);
   const data = useMemo(() => {
@@ -114,8 +162,15 @@ export default function Insights({ snapshot }: { snapshot: TripSnapshot }) {
   }, [key]);
 
   return (
-    <div className="h-full min-h-[640px] w-full overflow-x-auto">
-      <AgStudio data={data} initialState={REPORT} mode="view" theme={theme} style={{ height: "100%", width: "100%" }} />
+    <div className={`h-full w-full ${mobile ? "min-h-[80dvh]" : "min-h-[640px] overflow-x-auto"}`}>
+      <AgStudio
+        key={mobile ? "mobile" : "desktop"}
+        data={data}
+        initialState={report}
+        mode="view"
+        theme={theme}
+        style={{ height: "100%", width: "100%" }}
+      />
     </div>
   );
 }
