@@ -19,11 +19,14 @@ export function Chat({
 }) {
   const [text, setText] = useState("");
   const [photo, setPhoto] = useState<File | null>(null);
-  const [pending, setPending] = useState<{ text: string; photoUrl: string | null } | null>(null);
+  // The optimistic bubble shown while the bee works. afterSeq lets us hide it once polling
+  // brings back the saved copy, so the message never shows twice.
+  const [pending, setPending] = useState<{ text: string; photoUrl: string | null; afterSeq: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const nameOf = (id: string) => snapshot.members.find((m) => m.id === id)?.name ?? "Someone";
+  const echoed = pending && messages.some((m) => m.seq > pending.afterSeq && m.memberId === me.memberId);
 
   useEffect(() => {
     bottom.current?.scrollIntoView({ behavior: "smooth" });
@@ -35,7 +38,7 @@ export function Chat({
     const body = new FormData();
     body.set("text", text);
     if (photo) body.set("photo", photo);
-    setPending({ text, photoUrl: photo ? URL.createObjectURL(photo) : null });
+    setPending({ text, photoUrl: photo ? URL.createObjectURL(photo) : null, afterSeq: messages.at(-1)?.seq ?? 0 });
     setText("");
     setPhoto(null);
     setError(null);
@@ -54,13 +57,15 @@ export function Chat({
           ))}
           {pending && (
             <>
-              <Bubble mine author={null}>
-                {pending.photoUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={pending.photoUrl} alt="Receipt" className="mb-2 max-h-48 rounded-lg" />
-                )}
-                {pending.text}
-              </Bubble>
+              {!echoed && (
+                <Bubble mine author={null}>
+                  {pending.photoUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={pending.photoUrl} alt="Receipt" className="mb-2 max-h-48 rounded-lg" />
+                  )}
+                  {pending.text}
+                </Bubble>
+              )}
               <div className="flex items-center gap-2 text-sm text-muted">
                 <span className="animate-bounce">🐝</span> reading…
               </div>
