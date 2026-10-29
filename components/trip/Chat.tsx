@@ -28,7 +28,6 @@ export function Chat({
   const [pending, setPending] = useState<{ text: string; photoUrl: string | null; afterSeq: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
-  const input = useRef<HTMLTextAreaElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const nameOf = (id: string) => snapshot.members.find((m) => m.id === id)?.name ?? "Someone";
   // Pay buttons appear under the bee's latest settle-up message only.
@@ -68,10 +67,6 @@ export function Chat({
               snapshot={snapshot}
               trip={trip}
               settleUp={<SettleUp trip={trip} me={me} snapshot={snapshot} paypalClientId={paypalClientId} onPaid={onSent} />}
-              onBought={(product) => {
-                setText(`I bought "${product.title}" from ${product.merchant} for €`);
-                input.current?.focus();
-              }}
               payShare={(expenseId) => (
                 <PayShare expenseId={expenseId} trip={trip} me={me} snapshot={snapshot} paypalClientId={paypalClientId} onPaid={onSent} />
               )}
@@ -126,7 +121,6 @@ export function Chat({
             onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
           />
           <textarea
-            ref={input}
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
@@ -157,7 +151,6 @@ function Message({
   settleUp,
   showSettleUp,
   payShare,
-  onBought,
 }: {
   message: ChatMessage;
   mine: boolean;
@@ -167,7 +160,6 @@ function Message({
   settleUp: React.ReactNode;
   showSettleUp: boolean;
   payShare: (expenseId: string) => React.ReactNode;
-  onBought: (product: ProductCardData) => void;
 }) {
   const isAgent = message.memberId === null;
   return (
@@ -187,7 +179,7 @@ function Message({
         ) : null,
       )}
       {message.attachments?.map((a, i) =>
-        a.type === "products" ? <ProductCards key={i} products={a.products} onBought={onBought} /> : null,
+        a.type === "products" ? <ProductCards key={i} products={a.products} /> : null,
       )}
       {showSettleUp && snapshot.settlements.length > 0 && <div className="mt-2 w-72 max-w-full">{settleUp}</div>}
     </Bubble>
@@ -259,7 +251,7 @@ function ExpenseCard({
 }
 
 // Channel3 results. Prices come from US shops, so the trip-currency value is approximate.
-function ProductCards({ products, onBought }: { products: ProductCardData[]; onBought: (p: ProductCardData) => void }) {
+function ProductCards({ products }: { products: ProductCardData[] }) {
   return (
     <div className="-mx-1 mt-2 flex snap-x gap-2 overflow-x-auto px-1 pb-1">
       {products.map((p) => (
@@ -277,14 +269,14 @@ function ProductCards({ products, onBought }: { products: ProductCardData[]; onB
               {p.approxTripCurrency !== null && <span className="ml-1 font-sans text-[11px] font-normal text-muted">${p.price}</span>}
             </p>
             <p className="truncate text-muted">{p.merchant}</p>
-            <div className="mt-auto flex gap-1 pt-1">
-              <a href={p.url} target="_blank" rel="noopener noreferrer" className="flex-1 rounded-full border border-ink py-1 text-center font-semibold">
-                View
-              </a>
-              <button onClick={() => onBought(p)} className="flex-1 rounded-full bg-honey py-1 font-semibold">
-                Bought
-              </button>
-            </div>
+            <a
+              href={p.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-auto rounded-full border border-ink py-1 text-center font-semibold hover:bg-honey-soft"
+            >
+              View
+            </a>
           </div>
         </div>
       ))}
