@@ -2,7 +2,7 @@ import { and, asc, eq, gt } from "drizzle-orm";
 import { currentUser } from "./auth";
 import { db, schema } from "./db";
 import { getBalances, getBudgetStatus, listExpenses } from "./ledger/service";
-import { listSettlements } from "./settlements";
+import { listSettlements, listSharePayments } from "./settlements";
 import { getTripByPublicId, listMembers } from "./trips";
 
 // Resolves the trip and the signed-in user's membership; null if either is missing.
@@ -28,13 +28,14 @@ export async function messagesAfter(tripId: string, afterSeq: number) {
 
 // Everything the trip screen shows besides the chat. Plain JSON so it can go to the client.
 export async function tripSnapshot(tripId: string) {
-  const [members, { balances, transfers, totalCents }, expenses, budget, settlements, trip] = await Promise.all([
+  const [members, { balances, transfers, totalCents }, expenses, budget, settlements, trip, sharePayments] = await Promise.all([
     listMembers(tripId),
     getBalances(tripId),
     listExpenses(tripId),
     getBudgetStatus(tripId),
     listSettlements(tripId),
     db.query.trips.findFirst({ where: eq(schema.trips.id, tripId), columns: { status: true } }),
+    listSharePayments(tripId),
   ]);
   const net = new Map(balances.map((b) => [b.memberId, b]));
   return {
@@ -56,6 +57,8 @@ export async function tripSnapshot(tripId: string) {
       category: e.category,
       description: e.description,
       splitWith: e.splits.map((s) => s.memberId),
+      shares: Object.fromEntries(e.splits.map((s) => [s.memberId, s.shareCents])),
+      sharePaidBy: sharePayments.filter((p) => p.expenseId === e.id).map((p) => p.fromMember),
       hasReceipt: e.receiptId !== null,
       createdAt: e.createdAt.toISOString(),
     })),

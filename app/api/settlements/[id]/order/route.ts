@@ -7,7 +7,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   const me = await memberForSettlement(id);
   if (!me) return new Response("Forbidden", { status: 403 });
   try {
-    return Response.json({ orderId: await createSettlementOrder(id, me.id) });
+    return Response.json({ orderId: await createSettlementOrder(id, me.id), settlementId: id });
   } catch (error) {
     console.error("[settlement order]", error);
     return Response.json({ error: error instanceof Error ? error.message : "Could not create the PayPal order" }, { status: 400 });

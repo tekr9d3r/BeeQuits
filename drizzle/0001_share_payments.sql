@@ -1,0 +1,2 @@
+ALTER TABLE "settlements" ADD COLUMN "expense_id" uuid;--> statement-breakpoint
+ALTER TABLE "settlements" ADD CONSTRAINT "settlements_expense_id_expenses_id_fk" FOREIGN KEY ("expense_id") REFERENCES "public"."expenses"("id") ON DELETE no action ON UPDATE no action;

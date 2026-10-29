@@ -64,7 +64,13 @@ export function SettleUp({
             {done ? (
               <p className="mt-0.5 text-xs font-medium text-ok">✓ Paid via PayPal</p>
             ) : mine ? (
-              <PayButton settlementId={s.id} label={`Pay ${name(s.to)}`} trip={trip} clientId={paypalClientId} onPaid={onPaid} />
+              <PayButton
+                orderUrl={`/api/settlements/${s.id}/order`}
+                label={`Pay ${name(s.to)}`}
+                trip={trip}
+                clientId={paypalClientId}
+                onPaid={onPaid}
+              />
             ) : (
               <p className="mt-0.5 text-xs text-muted">Waiting for {name(s.from)} to pay</p>
             )}
@@ -75,15 +81,16 @@ export function SettleUp({
   );
 }
 
-function PayButton({
-  settlementId,
+// A PayPal button for one transfer. orderUrl creates the order and returns which settlement it pays.
+export function PayButton({
+  orderUrl,
   label,
   trip,
   clientId,
   onPaid,
 }: {
-  settlementId: string;
-  label: string;
+  orderUrl: string;
+  label?: string;
   trip: TripInfo;
   clientId: string;
   onPaid: () => Promise<void>;
@@ -95,6 +102,7 @@ function PayButton({
   useEffect(() => {
     let buttons: ReturnType<PayPalButtons> | null = null;
     let cancelled = false;
+    let settlementId: string | null = null;
     loadPayPal(clientId, trip.currency)
       .then(() => {
         if (cancelled || !container.current || !window.paypal) return;
@@ -102,9 +110,13 @@ function PayButton({
           style: { layout: "horizontal", color: "gold", shape: "pill", label: "pay", height: 40, tagline: false },
           createOrder: async () => {
             setError(null);
-            const res = await fetch(`/api/settlements/${settlementId}/order`, { method: "POST" });
+            const res = await fetch(orderUrl, { method: "POST" });
             const data = await res.json();
-            if (!res.ok) throw new Error(data.error ?? "Could not start the payment");
+            if (!res.ok) {
+              setError(data.error ?? "Could not start the payment");
+              throw new Error(data.error);
+            }
+            settlementId = data.settlementId;
             return data.orderId;
           },
           onApprove: async () => {
@@ -115,7 +127,7 @@ function PayButton({
             await onPaid();
             setState("ready");
           },
-          onError: (err) => setError(err instanceof Error ? err.message : "PayPal error, please try again"),
+          onError: (err) => setError((prev) => prev ?? (err instanceof Error && err.message ? err.message : "PayPal error, please try again")),
         });
         return buttons.render(container.current).then(() => setState("ready"));
       })
@@ -124,11 +136,11 @@ function PayButton({
       cancelled = true;
       buttons?.close().catch(() => {});
     };
-  }, [settlementId, clientId, trip.currency, onPaid]);
+  }, [orderUrl, clientId, trip.currency, onPaid]);
 
   return (
     <div className="mt-2">
-      <p className="mb-1 text-xs font-medium">{label}</p>
+      {label && <p className="mb-1 text-xs font-medium">{label}</p>}
       {state === "loading" && <p className="text-xs text-muted">Loading PayPal…</p>}
       {state === "capturing" && <p className="text-xs text-muted">Confirming payment…</p>}
       <div ref={container} className={state === "capturing" ? "hidden" : ""} />

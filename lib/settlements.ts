@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { db, schema } from "./db";
 import { money } from "./format";
 import { getBalances } from "./ledger/service";
@@ -8,8 +8,19 @@ import { listMembers } from "./trips";
 const { settlements, trips, tripMembers } = schema;
 export type Settlement = typeof settlements.$inferSelect;
 
+// End-of-trip settle-up transfers (share payments made along the way are excluded).
 export async function listSettlements(tripId: string) {
-  return db.query.settlements.findMany({ where: eq(settlements.tripId, tripId), orderBy: asc(settlements.createdAt) });
+  return db.query.settlements.findMany({
+    where: and(eq(settlements.tripId, tripId), isNull(settlements.expenseId)),
+    orderBy: asc(settlements.createdAt),
+  });
+}
+
+export async function listSharePayments(tripId: string) {
+  return db.query.settlements.findMany({
+    where: and(eq(settlements.tripId, tripId), eq(settlements.status, "captured")),
+    columns: { expenseId: true, fromMember: true },
+  });
 }
 
 // Locks the trip and turns the minimal transfers into settlements. Each one is paid
@@ -45,16 +56,42 @@ export async function reopenTrip(tripId: string) {
   const rows = await listSettlements(tripId);
   if (rows.some((s) => s.status === "captured")) throw new Error("Payments have already been made, so the trip can't be reopened.");
   await db.transaction(async (tx) => {
-    await tx.delete(settlements).where(eq(settlements.tripId, tripId));
+    await tx.delete(settlements).where(and(eq(settlements.tripId, tripId), isNull(settlements.expenseId)));
     await tx.update(trips).set({ status: "active", lockedAt: null }).where(eq(trips.id, tripId));
   });
 }
 
 type PayPalOrder = { id: string; status: string };
 
+// "Pay my share" on one expense: reuses an unpaid attempt or creates a new transfer to the payer.
+export async function createSharePayment(expenseId: string, payerMemberId: string) {
+  const expense = await db.query.expenses.findFirst({ where: eq(schema.expenses.id, expenseId), with: { splits: true } });
+  if (!expense || expense.deletedAt) throw new Error("Expense not found");
+  const trip = await db.query.trips.findFirst({ where: eq(trips.id, expense.tripId) });
+  if (trip?.status !== "active") throw new Error("The group is settling up already, use the settle-up instead");
+  const share = expense.splits.find((s) => s.memberId === payerMemberId);
+  if (!share || expense.paidBy === payerMemberId) throw new Error("You don't owe anything on this expense");
+
+  const previous = await db.query.settlements.findMany({
+    where: and(eq(settlements.expenseId, expenseId), eq(settlements.fromMember, payerMemberId)),
+  });
+  if (previous.some((p) => p.status === "captured")) throw new Error("You already paid your share");
+  const open = previous.find((p) => p.status !== "captured");
+  const row =
+    open ??
+    (
+      await db
+        .insert(settlements)
+        .values({ tripId: expense.tripId, expenseId, fromMember: payerMemberId, toMember: expense.paidBy, amountCents: share.shareCents })
+        .returning()
+    )[0];
+  const orderId = await createSettlementOrder(row.id, payerMemberId, `${expense.description} (my share)`);
+  return { settlementId: row.id, orderId };
+}
+
 // Creates the PayPal order for one transfer: the signed-in debtor pays, the creditor's
 // PayPal email is the payee. BeeQuits is never in the money flow.
-export async function createSettlementOrder(settlementId: string, payerMemberId: string) {
+export async function createSettlementOrder(settlementId: string, payerMemberId: string, label?: string) {
   const s = await db.query.settlements.findFirst({ where: eq(settlements.id, settlementId) });
   if (!s || s.fromMember !== payerMemberId) throw new Error("This payment isn't yours to make");
   if (s.status === "captured") throw new Error("Already paid");
@@ -70,7 +107,7 @@ export async function createSettlementOrder(settlementId: string, payerMemberId:
       {
         reference_id: s.id,
         custom_id: s.id,
-        description: `BeeQuits settle-up: ${trip!.name}`.slice(0, 127),
+        description: `BeeQuits · ${trip!.name} · ${label ?? "settle-up"}`.slice(0, 127),
         amount: { currency_code: trip!.currency, value: (s.amountCents / 100).toFixed(2) },
         payee: { email_address: creditor.user.paypalEmail },
       },
@@ -105,18 +142,20 @@ export async function markCaptured(paypalOrderId: string, captureId: string) {
     .returning();
   if (!updated) return;
 
-  const [members, trip, all] = await Promise.all([
+  const [members, trip, all, expense] = await Promise.all([
     listMembers(updated.tripId),
     db.query.trips.findFirst({ where: eq(trips.id, updated.tripId) }),
     listSettlements(updated.tripId),
+    updated.expenseId ? db.query.expenses.findFirst({ where: eq(schema.expenses.id, updated.expenseId) }) : null,
   ]);
   const name = (id: string) => members.find((m) => m.id === id)?.displayName ?? "Someone";
+  const forWhat = expense ? ` for their share of ${expense.description}` : "";
   await db.insert(schema.messages).values({
     tripId: updated.tripId,
-    content: `✅ ${name(updated.fromMember)} paid ${name(updated.toMember)} ${money(updated.amountCents, trip!.currency)} via PayPal.`,
+    content: `✅ ${name(updated.fromMember)} paid ${name(updated.toMember)} ${money(updated.amountCents, trip!.currency)}${forWhat} via PayPal.`,
     attachments: [{ type: "settlement", settlementId: updated.id }],
   });
-  if (all.every((s) => s.status === "captured")) {
+  if (trip!.status === "settling" && all.length > 0 && all.every((s) => s.status === "captured")) {
     await db.update(trips).set({ status: "closed" }).where(eq(trips.id, updated.tripId));
     await db.insert(schema.messages).values({
       tripId: updated.tripId,

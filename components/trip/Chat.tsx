@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useRef, useState } from "react";
 import { money } from "@/lib/format";
-import { SettleUp } from "./SettleUp";
+import { PayButton, SettleUp } from "./SettleUp";
 import { CATEGORY_LABEL, type ChatMessage, type Me, type TripInfo, type TripSnapshot } from "./types";
 
 export function Chat({
@@ -66,6 +66,9 @@ export function Chat({
               snapshot={snapshot}
               trip={trip}
               settleUp={<SettleUp trip={trip} me={me} snapshot={snapshot} paypalClientId={paypalClientId} onPaid={onSent} />}
+              payShare={(expenseId) => (
+                <PayShare expenseId={expenseId} trip={trip} me={me} snapshot={snapshot} paypalClientId={paypalClientId} onPaid={onSent} />
+              )}
               showSettleUp={m.seq === lastSettleUpSeq}
             />
           ))}
@@ -146,6 +149,7 @@ function Message({
   trip,
   settleUp,
   showSettleUp,
+  payShare,
 }: {
   message: ChatMessage;
   mine: boolean;
@@ -154,6 +158,7 @@ function Message({
   trip: TripInfo;
   settleUp: React.ReactNode;
   showSettleUp: boolean;
+  payShare: (expenseId: string) => React.ReactNode;
 }) {
   const isAgent = message.memberId === null;
   return (
@@ -166,7 +171,11 @@ function Message({
       )}
       <RichText text={message.content} />
       {message.attachments?.map((a, i) =>
-        a.type === "expense" ? <ExpenseCard key={i} expenseId={a.expenseId} snapshot={snapshot} trip={trip} /> : null,
+        a.type === "expense" ? (
+          <ExpenseCard key={i} expenseId={a.expenseId} snapshot={snapshot} trip={trip}>
+            {payShare(a.expenseId)}
+          </ExpenseCard>
+        ) : null,
       )}
       {showSettleUp && snapshot.settlements.length > 0 && <div className="mt-2 w-72 max-w-full">{settleUp}</div>}
     </Bubble>
@@ -209,7 +218,17 @@ function RichText({ text }: { text: string }) {
   );
 }
 
-function ExpenseCard({ expenseId, snapshot, trip }: { expenseId: string; snapshot: TripSnapshot; trip: TripInfo }) {
+function ExpenseCard({
+  expenseId,
+  snapshot,
+  trip,
+  children,
+}: {
+  expenseId: string;
+  snapshot: TripSnapshot;
+  trip: TripInfo;
+  children?: React.ReactNode;
+}) {
   const e = snapshot.expenses.find((x) => x.id === expenseId);
   if (!e) return null;
   const name = (id: string) => snapshot.members.find((m) => m.id === id)?.name ?? "?";
@@ -222,6 +241,54 @@ function ExpenseCard({ expenseId, snapshot, trip }: { expenseId: string; snapsho
       <div className="mt-0.5 text-xs text-muted">
         {CATEGORY_LABEL[e.category] ?? e.category} · paid by {name(e.paidBy)} · split {e.splitWith.map(name).join(", ")}
       </div>
+      {children}
+    </div>
+  );
+}
+
+// Lets a member pay their part of one expense right away, straight to whoever paid it.
+// Whatever isn't paid early stays in their balance for the final settle-up.
+function PayShare({
+  expenseId,
+  trip,
+  me,
+  snapshot,
+  paypalClientId,
+  onPaid,
+}: {
+  expenseId: string;
+  trip: TripInfo;
+  me: Me;
+  snapshot: TripSnapshot;
+  paypalClientId: string;
+  onPaid: () => Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const e = snapshot.expenses.find((x) => x.id === expenseId);
+  const share = e?.shares[me.memberId];
+  if (!e || !share || e.paidBy === me.memberId) return null;
+  const payer = snapshot.members.find((m) => m.id === e.paidBy);
+
+  if (e.sharePaidBy.includes(me.memberId)) {
+    return <p className="mt-1.5 text-xs font-medium text-ok">✓ You paid your share ({money(share, trip.currency)})</p>;
+  }
+  if (snapshot.status !== "active" || !payer?.joined) return null;
+  if (!open) {
+    return (
+      <button onClick={() => setOpen(true)} className="mt-2 rounded-full bg-honey px-3 py-1 text-xs font-semibold hover:bg-honey-strong">
+        Pay my share now · {money(share, trip.currency)}
+      </button>
+    );
+  }
+  return (
+    <div className="mt-2 border-t border-line pt-2">
+      <PayButton
+        orderUrl={`/api/expenses/${expenseId}/pay-share`}
+        label={`Pay ${payer.name} ${money(share, trip.currency)}, or leave it for the final settle-up`}
+        trip={trip}
+        clientId={paypalClientId}
+        onPaid={onPaid}
+      />
     </div>
   );
 }

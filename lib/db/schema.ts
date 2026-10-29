@@ -131,9 +131,12 @@ export type ProductCard = {
   url: string;
 };
 
+// A transfer from one member to another. With expenseId it's an early "pay my share" payment;
+// without, it's part of the end-of-trip settle-up.
 export const settlements = pgTable("settlements", {
   id: uuid().primaryKey().defaultRandom(),
   tripId: uuid().notNull().references(() => trips.id, { onDelete: "cascade" }),
+  expenseId: uuid().references(() => expenses.id),
   fromMember: uuid().notNull().references(() => tripMembers.id),
   toMember: uuid().notNull().references(() => tripMembers.id),
   amountCents: integer().notNull(),
