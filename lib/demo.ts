@@ -30,6 +30,11 @@ const EXPENSES: [Key, number, Category, string, Key[] | null, string, string][] 
   ["emma", 142, "food_drinks", "Fondue dinner", null, "Fondue tonight 142€ 🧀", "Logged €142.00 food & drinks, paid by Emma, split 4 ways. Heads up: food & drinks is now €10.50 over its €250 budget."],
 ];
 
+export async function resetDemoTrip() {
+  await db.delete(schema.trips).where(eq(schema.trips.isDemo, true));
+  return ensureDemoTrip();
+}
+
 export async function ensureDemoTrip() {
   const existing = await db.query.trips.findFirst({ where: eq(schema.trips.isDemo, true) });
   if (existing) {

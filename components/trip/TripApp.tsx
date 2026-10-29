@@ -57,7 +57,20 @@ export function TripApp(props: {
               {trip.locked && " · 🔒 settling up"}
             </h1>
           </div>
-          {trip.isDemo && <DemoSwitcher trip={trip} crew={props.demoCrew} current={me.memberId} />}
+          {trip.isDemo && (
+            <div className="flex shrink-0 items-center gap-3">
+              <DemoSwitcher trip={trip} crew={props.demoCrew} current={me.memberId} />
+              <a
+                href="/demo?reset"
+                onClick={(e) => {
+                  if (!confirm("Start the demo trip over? Everyone's chat and payments in the demo are reset.")) e.preventDefault();
+                }}
+                className="text-xs text-muted underline"
+              >
+                Reset
+              </a>
+            </div>
+          )}
         </div>
       </header>
 
