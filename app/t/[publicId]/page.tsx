@@ -1,5 +1,7 @@
+import { eq } from "drizzle-orm";
 import { notFound, redirect } from "next/navigation";
 import { TripApp } from "@/components/trip/TripApp";
+import { db, schema } from "@/lib/db";
 import { inviteLink } from "@/lib/invite";
 import { loadMembership, messagesAfter, tripSnapshot } from "@/lib/trip-view";
 
@@ -11,7 +13,11 @@ export default async function TripPage({ params }: { params: Promise<{ publicId:
   const { trip, user, me } = await loadMembership(publicId);
   if (!trip) notFound();
   if (!me) {
-    if (trip.isDemo) redirect("/demo");
+    if (trip.isDemo) {
+      // This browser started a newer tour: go there rather than back to the start page.
+      const current = user && (await db.query.trips.findFirst({ where: eq(schema.trips.createdBy, user.id) }));
+      redirect(current ? `/t/${current.publicId}` : "/demo");
+    }
     if (!user) redirect(`/api/auth/paypal/login?next=/t/${publicId}`);
     return (
       <main className="mx-auto max-w-md flex-1 px-4 py-20 text-center">

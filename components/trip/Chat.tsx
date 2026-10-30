@@ -59,6 +59,12 @@ export function Chat({
     setPending({ text: message, photoUrl: file ? URL.createObjectURL(file) : null, afterSeq: messages.at(-1)?.seq ?? 0 });
     setError(null);
     const res = await fetch(`/api/trips/${trip.publicId}/messages`, { method: "POST", body });
+    if (res.status === 403 && trip.isDemo) {
+      // A newer tour was started in this browser; the page sends us to it.
+      setError("This browser has moved on to a newer demo tour. Taking you there…");
+      setTimeout(() => window.location.reload(), 1500);
+      return;
+    }
     if (!res.ok) setError(await res.text());
     await onSent();
     setPending(null);

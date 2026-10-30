@@ -37,7 +37,7 @@ export const trips = pgTable("trips", {
   isDemo: boolean().notNull().default(false),
   lastNudgedAt: timestamp({ withTimezone: true }),
   // Guided demo progress the server can't derive from the ledger (e.g. which tabs were opened).
-  demoTour: jsonb().$type<{ insightsOpened?: boolean }>(),
+  demoTour: jsonb().$type<{ insightsOpened?: boolean; startKey?: string }>(),
   createdBy: uuid().references(() => users.id),
   createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 });

@@ -30,7 +30,8 @@ export async function joinTripAction(publicId: string, code: string, claimMember
 export async function startDemoTour(formData: FormData) {
   if (process.env.DEMO_MODE !== "true") throw new Error("The demo is disabled");
   const name = String(formData.get("name") ?? "").trim().slice(0, 30) || "Alex";
-  const { trip, judge } = await createDemoTour(name);
+  const startKey = String(formData.get("startKey") ?? "").slice(0, 64) || crypto.randomUUID();
+  const { trip, judge } = await createDemoTour(name, startKey);
   const session = await getSession();
   session.userId = judge.id;
   await session.save();

@@ -1,4 +1,4 @@
-import { and, eq, lt } from "drizzle-orm";
+import { and, eq, lt, sql } from "drizzle-orm";
 import { customAlphabet } from "nanoid";
 import { avatarFor } from "./avatars";
 import { db, schema } from "./db";
@@ -36,7 +36,16 @@ const isoDate = (d: Date) => d.toISOString().slice(0, 10);
 
 // Creates a private copy of the Sölden trip for one visitor: they are the organizer, their three
 // friends have already joined and logged the first days. Nobody else can see or change it.
-export async function createDemoTour(judgeName: string) {
+// startKey is generated once per form load, so a double-submitted form reopens the same trip.
+export async function createDemoTour(judgeName: string, startKey: string) {
+  const existing = await db.query.trips.findFirst({
+    where: and(eq(schema.trips.isDemo, true), sql`${schema.trips.demoTour}->>'startKey' = ${startKey}`),
+  });
+  if (existing) {
+    const judge = await db.query.users.findFirst({ where: eq(schema.users.id, existing.createdBy!) });
+    return { trip: existing, judge: judge! };
+  }
+
   await db.delete(schema.trips).where(and(eq(schema.trips.isDemo, true), lt(schema.trips.createdAt, new Date(Date.now() - 3 * DAY))));
 
   const [judge] = await db
@@ -68,6 +77,7 @@ export async function createDemoTour(judgeName: string) {
       startDate: isoDate(start),
       endDate: isoDate(new Date(start.getTime() + 7 * DAY)),
       isDemo: true,
+      demoTour: { startKey },
       createdBy: judge.id,
     })
     .returning();

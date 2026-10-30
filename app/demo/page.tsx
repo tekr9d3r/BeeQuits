@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { startDemoTour } from "@/app/actions";
+import { DemoStartForm } from "@/components/DemoStartForm";
 import { Logo } from "@/components/Logo";
 import { DEMO_FRIENDS } from "@/lib/demo";
 
@@ -23,7 +23,7 @@ export default function DemoStart() {
         private copy of the trip, and every payment is a real PayPal <strong>sandbox</strong> payment, so no real money moves.
       </p>
 
-      <form action={startDemoTour} className="mt-8 flex flex-col gap-5">
+      <DemoStartForm>
         <label className="flex flex-col gap-1.5">
           <span className="text-sm font-medium">Your name</span>
           <input name="name" defaultValue="Alex" maxLength={30} className="rounded-xl border border-line bg-card px-4 py-3 outline-none focus:border-honey-strong" />
@@ -41,9 +41,7 @@ export default function DemoStart() {
           </ul>
           <p className="mt-1.5 text-xs text-muted">In a real trip you share an invite link and friends join with PayPal.</p>
         </div>
-
-        <button className="rounded-full bg-ink px-6 py-3 font-semibold text-paper hover:opacity-90">Invite friends &amp; open the trip</button>
-      </form>
+      </DemoStartForm>
 
       <div className="mt-10">
         <p className="text-sm font-medium">What you&apos;ll try</p>
