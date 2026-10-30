@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import { money } from "@/lib/format";
 import { Avatar, BeeAvatar } from "./Avatar";
+import { DemoTour } from "./DemoTour";
 import { PayButton, SettleUp } from "./SettleUp";
 import type { ProductCard as ProductCardData } from "@/lib/db/schema";
 import { CATEGORY_LABEL, type ChatMessage, type Me, type TripInfo, type TripSnapshot } from "./types";
@@ -14,6 +15,7 @@ export function Chat({
   snapshot,
   paypalClientId,
   onSent,
+  onOpenInsights,
 }: {
   trip: TripInfo;
   me: Me;
@@ -21,6 +23,7 @@ export function Chat({
   snapshot: TripSnapshot;
   paypalClientId: string;
   onSent: () => Promise<void>;
+  onOpenInsights: () => void;
 }) {
   const [text, setText] = useState("");
   const [photo, setPhoto] = useState<File | null>(null);
@@ -47,23 +50,13 @@ export function Chat({
       "🔔 Remind everyone who still has to pay",
   ].filter((a): a is string => !!a);
 
-  async function send(e: React.FormEvent | null, preset?: string) {
-    e?.preventDefault();
-    const message = preset ?? text;
-    if (pending || (!message.trim() && !photo)) return;
+  // Posts a message and waits for the bee. Presets (quick actions, demo tour) leave the composer alone.
+  async function post(message: string, file: File | null) {
+    if (pending || (!message.trim() && !file)) return;
     const body = new FormData();
     body.set("text", message);
-    if (photo && !preset) body.set("photo", photo);
-    setPending({ text: message, photoUrl: photo && !preset ? URL.createObjectURL(photo) : null, afterSeq: messages.at(-1)?.seq ?? 0 });
-    if (preset) {
-      const res = await fetch(`/api/trips/${trip.publicId}/messages`, { method: "POST", body });
-      if (!res.ok) setError(await res.text());
-      await onSent();
-      setPending(null);
-      return;
-    }
-    setText("");
-    setPhoto(null);
+    if (file) body.set("photo", file);
+    setPending({ text: message, photoUrl: file ? URL.createObjectURL(file) : null, afterSeq: messages.at(-1)?.seq ?? 0 });
     setError(null);
     const res = await fetch(`/api/trips/${trip.publicId}/messages`, { method: "POST", body });
     if (!res.ok) setError(await res.text());
@@ -71,9 +64,31 @@ export function Chat({
     setPending(null);
   }
 
+  async function send(e: React.FormEvent | null, preset?: string) {
+    e?.preventDefault();
+    if (preset) return post(preset, null);
+    const [message, file] = [text, photo];
+    setText("");
+    setPhoto(null);
+    await post(message, file);
+  }
+
   return (
     <>
       <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-4">
+        {snapshot.tour && (
+          <DemoTour
+            tour={snapshot.tour}
+            snapshot={snapshot}
+            busy={!!pending}
+            say={(t) => post(t, null)}
+            sendSampleReceipt={async () => {
+              const blob = await (await fetch("/demo/bar-receipt.png")).blob();
+              await post("", new File([blob], "bar-receipt.png", { type: "image/png" }));
+            }}
+            openInsights={onOpenInsights}
+          />
+        )}
         <div className="flex flex-col gap-3">
           {messages.map((m) => (
             <Message
@@ -279,7 +294,7 @@ function ExpenseCard({
   if (!e) return null;
   const name = (id: string) => snapshot.members.find((m) => m.id === id)?.name ?? "?";
   return (
-    <div className="mt-2 rounded-xl border border-line bg-card px-3 py-2 text-sm">
+    <div id={`expense-${e.id}`} className="mt-2 scroll-mt-24 rounded-xl border border-line bg-card px-3 py-2 text-sm">
       <div className="flex items-baseline justify-between gap-4">
         <span className="font-medium">{e.description}</span>
         <span className="font-mono font-semibold">{money(e.amountCents, trip.currency)}</span>

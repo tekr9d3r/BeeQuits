@@ -19,6 +19,8 @@ export type TripInfo = {
   endDate: string | null;
   isDemo: boolean;
   locked: boolean;
+  // Guided demo: the PayPal sandbox buyer account visitors log in with at checkout.
+  demoBuyer: { email: string; password: string } | null;
 };
 
 export type Me = { memberId: string; role: "organizer" | "member" };

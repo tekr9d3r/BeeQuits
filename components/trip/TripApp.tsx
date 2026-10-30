@@ -2,7 +2,6 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { viewAs } from "@/app/actions";
 import { Logo } from "@/components/Logo";
 import { Chat } from "./Chat";
 import { Dashboard } from "./Dashboard";
@@ -22,7 +21,6 @@ export function TripApp(props: {
   trip: TripInfo;
   me: Me;
   invite: { url: string; qr: string };
-  demoCrew: { id: string; name: string }[];
   paypalClientId: string;
   initialMessages: ChatMessage[];
   initialSnapshot: TripSnapshot;
@@ -53,6 +51,13 @@ export function TripApp(props: {
 
   const myName = snapshot.members.find((m) => m.id === me.memberId)?.name ?? "You";
 
+  function openTab(t: Tab) {
+    setTab(t);
+    if (t === "insights" && snapshot.tour && !snapshot.tour.insights) {
+      fetch(`/api/trips/${trip.publicId}/tour`, { method: "POST" }).then(refresh);
+    }
+  }
+
   return (
     <div className="flex h-dvh flex-col">
       <header className="border-b border-line bg-card px-4 py-3">
@@ -64,20 +69,6 @@ export function TripApp(props: {
               {trip.locked && " · 🔒 settling up"}
             </h1>
           </div>
-          {trip.isDemo && (
-            <div className="flex shrink-0 items-center gap-3">
-              <DemoSwitcher trip={trip} crew={props.demoCrew} current={me.memberId} />
-              <a
-                href="/demo?reset"
-                onClick={(e) => {
-                  if (!confirm("Start the demo trip over? Everyone's chat and payments in the demo are reset.")) e.preventDefault();
-                }}
-                className="text-xs text-muted underline"
-              >
-                Reset
-              </a>
-            </div>
-          )}
         </div>
       </header>
 
@@ -85,7 +76,7 @@ export function TripApp(props: {
         {(["chat", "dashboard", "people", "insights"] as const).map((t) => (
           <button
             key={t}
-            onClick={() => setTab(t)}
+            onClick={() => openTab(t)}
             className={`flex-1 py-2.5 text-sm font-medium capitalize ${tab === t ? "border-b-2 border-ink" : "text-muted"}`}
           >
             {t}
@@ -102,7 +93,7 @@ export function TripApp(props: {
           ).map(([t, label]) => (
             <button
               key={t}
-              onClick={() => setTab(t)}
+              onClick={() => openTab(t)}
               className={`py-2.5 text-sm font-medium ${(tab === "insights") === (t === "insights") ? "border-b-2 border-ink" : "text-muted"}`}
             >
               {label}
@@ -118,7 +109,15 @@ export function TripApp(props: {
       )}
       <div className={`mx-auto ${tab === "insights" ? "hidden" : "grid"} min-h-0 w-full max-w-6xl flex-1 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-6 lg:px-4 lg:py-4`}>
         <section className={`min-h-0 flex-col ${tab === "chat" ? "flex" : "hidden"} lg:flex lg:rounded-2xl lg:border lg:border-line lg:bg-card`}>
-          <Chat trip={trip} me={me} messages={messages} snapshot={snapshot} paypalClientId={props.paypalClientId} onSent={refresh} />
+          <Chat
+            trip={trip}
+            me={me}
+            messages={messages}
+            snapshot={snapshot}
+            paypalClientId={props.paypalClientId}
+            onSent={refresh}
+            onOpenInsights={() => openTab("insights")}
+          />
         </section>
         <aside className={`min-h-0 overflow-y-auto ${tab === "chat" ? "hidden" : "block"} lg:block`}>
           <div className={tab === "people" ? "hidden lg:block" : ""}>
@@ -130,31 +129,5 @@ export function TripApp(props: {
         </aside>
       </div>
     </div>
-  );
-}
-
-function DemoSwitcher({ trip, crew, current }: { trip: TripInfo; crew: { id: string; name: string }[]; current: string }) {
-  const [busy, setBusy] = useState(false);
-  return (
-    <label className="flex shrink-0 items-center gap-2 rounded-full bg-honey-soft px-3 py-1.5 text-sm">
-      <span className="hidden sm:inline">Demo · viewing as</span>
-      <span className="sm:hidden">As</span>
-      <select
-        value={current}
-        disabled={busy}
-        onChange={async (e) => {
-          setBusy(true);
-          await viewAs(trip.publicId, e.target.value);
-          window.location.reload();
-        }}
-        className="bg-transparent font-semibold outline-none"
-      >
-        {crew.map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.name}
-          </option>
-        ))}
-      </select>
-    </label>
   );
 }

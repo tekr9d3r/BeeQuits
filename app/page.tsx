@@ -34,7 +34,7 @@ export default async function Home() {
           </Link>
           {demo && (
             <Link href="/demo" className="rounded-full border-2 border-ink px-6 py-3 text-center font-semibold hover:bg-honey-soft">
-              Try the demo ski trip
+              Take the guided demo · no login
             </Link>
           )}
         </div>

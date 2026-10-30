@@ -16,7 +16,7 @@ export async function payPalUser() {
 }
 
 export function isDemoAccount(user: { paypalUserId: string }) {
-  return user.paypalUserId.startsWith("demo:");
+  return user.paypalUserId.startsWith("demo");
 }
 
 // Only same-site paths, so the login redirect can't be abused as an open redirect.

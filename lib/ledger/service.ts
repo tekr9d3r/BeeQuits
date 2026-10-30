@@ -38,6 +38,7 @@ export async function addExpense(input: {
   split: SplitSpec;
   receiptId?: string | null;
   productUrl?: string | null;
+  createdAt?: Date;
 }) {
   if (!Number.isInteger(input.amountCents) || input.amountCents <= 0) throw new Error("Amount must be positive");
   const shares = resolveSplit(input.amountCents, input.split);
@@ -52,6 +53,7 @@ export async function addExpense(input: {
         description: input.description,
         receiptId: input.receiptId ?? null,
         productUrl: input.productUrl ?? null,
+        ...(input.createdAt && { createdAt: input.createdAt }),
       })
       .returning();
     await tx.insert(expenseSplits).values(shares.map((s) => ({ expenseId: expense.id, ...s })));

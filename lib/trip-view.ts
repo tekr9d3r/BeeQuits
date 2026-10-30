@@ -1,4 +1,4 @@
-import { and, asc, eq, gt } from "drizzle-orm";
+import { and, asc, eq, gt, isNull } from "drizzle-orm";
 import { currentUser, isDemoAccount } from "./auth";
 import { avatarFor } from "./avatars";
 import { db, schema } from "./db";
@@ -36,11 +36,16 @@ export async function tripSnapshot(tripId: string) {
     listExpenses(tripId),
     getBudgetStatus(tripId),
     listSettlements(tripId),
-    db.query.trips.findFirst({ where: eq(schema.trips.id, tripId), columns: { status: true } }),
+    db.query.trips.findFirst({
+      where: eq(schema.trips.id, tripId),
+      columns: { status: true, isDemo: true, createdAt: true, demoTour: true },
+    }),
     listSharePayments(tripId),
   ]);
   const net = new Map(balances.map((b) => [b.memberId, b]));
+  const tour = trip!.isDemo ? await demoTourProgress(tripId, trip!, expenses, members, sharePayments) : null;
   return {
+    tour,
     totalCents,
     members: members.map((m, i) => ({
       id: m.id,
@@ -79,3 +84,26 @@ export async function tripSnapshot(tripId: string) {
   };
 }
 export type TripSnapshot = Awaited<ReturnType<typeof tripSnapshot>>;
+
+// Guided demo steps, derived from what actually happened in the trip.
+async function demoTourProgress(
+  tripId: string,
+  trip: { createdAt: Date; status: string; demoTour: { insightsOpened?: boolean } | null },
+  expenses: Awaited<ReturnType<typeof listExpenses>>,
+  members: Awaited<ReturnType<typeof listMembers>>,
+  sharePayments: Awaited<ReturnType<typeof listSharePayments>>,
+) {
+  const judge = members.find((m) => m.role === "organizer");
+  const agentMessages = await db.query.messages.findMany({
+    where: and(eq(schema.messages.tripId, tripId), isNull(schema.messages.memberId)),
+    columns: { attachments: true },
+  });
+  return {
+    logCost: expenses.some((e) => e.createdAt > trip.createdAt && !e.receiptId),
+    receipt: expenses.some((e) => e.receiptId !== null),
+    payShare: sharePayments.some((p) => p.expenseId !== null && p.fromMember === judge?.id),
+    gear: agentMessages.some((m) => m.attachments?.some((a) => a.type === "products")),
+    insights: !!trip.demoTour?.insightsOpened,
+    closed: trip.status === "closed",
+  };
+}

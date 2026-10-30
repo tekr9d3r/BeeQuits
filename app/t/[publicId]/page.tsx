@@ -1,7 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { TripApp } from "@/components/trip/TripApp";
 import { inviteLink } from "@/lib/invite";
-import { listMembers } from "@/lib/trips";
 import { loadMembership, messagesAfter, tripSnapshot } from "@/lib/trip-view";
 
 // Reads the session cookie, so it renders per request.
@@ -22,11 +21,10 @@ export default async function TripPage({ params }: { params: Promise<{ publicId:
     );
   }
 
-  const [messages, snapshot, invite, members] = await Promise.all([
+  const [messages, snapshot, invite] = await Promise.all([
     messagesAfter(trip.id, 0),
     tripSnapshot(trip.id),
     inviteLink(trip.publicId, trip.inviteCode),
-    trip.isDemo ? listMembers(trip.id) : Promise.resolve([]),
   ]);
 
   return (
@@ -39,11 +37,14 @@ export default async function TripPage({ params }: { params: Promise<{ publicId:
         endDate: trip.endDate,
         isDemo: trip.isDemo,
         locked: trip.lockedAt !== null,
+        demoBuyer:
+          trip.isDemo && process.env.DEMO_BUYER_EMAIL
+            ? { email: process.env.DEMO_BUYER_EMAIL, password: process.env.DEMO_BUYER_PASSWORD ?? "" }
+            : null,
       }}
       me={{ memberId: me.id, role: me.role }}
       invite={invite}
       paypalClientId={process.env.PAYPAL_CLIENT_ID!}
-      demoCrew={members.filter((m) => m.userId).map((m) => ({ id: m.id, name: m.displayName }))}
       initialMessages={JSON.parse(JSON.stringify(messages))}
       initialSnapshot={snapshot}
     />

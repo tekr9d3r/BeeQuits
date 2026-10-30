@@ -150,9 +150,10 @@ export async function markCaptured(paypalOrderId: string, captureId: string) {
   ]);
   const name = (id: string) => members.find((m) => m.id === id)?.displayName ?? "Someone";
   const forWhat = expense ? ` for their share of ${expense.description}` : "";
+  const how = captureId === SIMULATED ? " (simulated demo friend)" : " via PayPal";
   await db.insert(schema.messages).values({
     tripId: updated.tripId,
-    content: `✅ ${name(updated.fromMember)} paid ${name(updated.toMember)} ${money(updated.amountCents, trip!.currency)}${forWhat} via PayPal.`,
+    content: `✅ ${name(updated.fromMember)} paid ${name(updated.toMember)} ${money(updated.amountCents, trip!.currency)}${forWhat}${how}.`,
     attachments: [{ type: "settlement", settlementId: updated.id }],
   });
   if (trip!.status === "settling" && all.length > 0 && all.every((s) => s.status === "captured")) {
@@ -161,6 +162,24 @@ export async function markCaptured(paypalOrderId: string, captureId: string) {
       tripId: updated.tripId,
       content: "🎉 Everyone is quits! All payments went straight between you on PayPal. Thanks for flying with BeeQuits 🐝",
     });
+  }
+}
+
+const SIMULATED = "SIMULATED";
+
+// Guided demo only: the visitor can't log into their friends' PayPal accounts, so transfers
+// between the simulated friends are marked paid. The visitor's own transfers stay real.
+export async function simulateFriendPayments(tripId: string) {
+  const trip = await db.query.trips.findFirst({ where: eq(trips.id, tripId) });
+  if (!trip?.isDemo || trip.status !== "settling") return;
+  const judge = await db.query.tripMembers.findFirst({
+    where: and(eq(tripMembers.tripId, tripId), eq(tripMembers.role, "organizer")),
+  });
+  for (const s of await listSettlements(tripId)) {
+    if (s.status === "captured" || s.fromMember === judge?.id) continue;
+    const orderId = s.paypalOrderId ?? `SIM-${s.id}`;
+    await db.update(settlements).set({ paypalOrderId: orderId }).where(eq(settlements.id, s.id));
+    await markCaptured(orderId, SIMULATED);
   }
 }
 

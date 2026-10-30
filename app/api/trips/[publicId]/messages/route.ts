@@ -1,4 +1,6 @@
+import { after } from "next/server";
 import { runAgent } from "@/lib/agent/run";
+import { simulateFriendPayments } from "@/lib/settlements";
 import { db, schema } from "@/lib/db";
 import { loadMembership } from "@/lib/trip-view";
 
@@ -43,6 +45,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ pub
     await db.insert(schema.messages).values({
       tripId: trip.id,
       content: "Sorry, my wings got tangled 🐝 I couldn't process that. Could you try again?",
+    });
+  }
+  // Guided demo: once settling has started, the simulated friends "pay" each other a moment later.
+  if (trip.isDemo) {
+    after(async () => {
+      await new Promise((r) => setTimeout(r, 3000));
+      await simulateFriendPayments(trip.id).catch((e) => console.error("[demo payments]", e));
     });
   }
   return Response.json({ ok: true });

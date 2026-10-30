@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { payPalUser } from "@/lib/auth";
-import { isDemoUser } from "@/lib/demo";
+import { createDemoTour } from "@/lib/demo";
 import { db, schema } from "@/lib/db";
 import { getBalances } from "@/lib/ledger/service";
 import { getSession } from "@/lib/session";
@@ -41,17 +41,15 @@ export async function joinTripAction(publicId: string, code: string, claimMember
   redirect(`/t/${publicId}`);
 }
 
-// Demo only: switch the session to another demo crew member to see the trip from their side.
-export async function viewAs(publicId: string, memberId: string) {
-  const trip = await getTripByPublicId(publicId);
-  if (!trip?.isDemo) throw new Error("Switching is only available on the demo trip");
-  const member = await db.query.tripMembers.findFirst({ where: eq(schema.tripMembers.id, memberId) });
-  if (!member?.userId || member.tripId !== trip.id || !(await isDemoUser(member.userId))) {
-    throw new Error("Not a demo crew member");
-  }
+// Starts a private guided demo trip for this browser: no PayPal login, the visitor is the organizer.
+export async function startDemoTour(formData: FormData) {
+  if (process.env.DEMO_MODE !== "true") throw new Error("The demo is disabled");
+  const name = String(formData.get("name") ?? "").trim().slice(0, 30) || "Alex";
+  const { trip, judge } = await createDemoTour(name);
   const session = await getSession();
-  session.userId = member.userId;
+  session.userId = judge.id;
   await session.save();
+  redirect(`/t/${trip.publicId}`);
 }
 
 export type ActionResult = { error?: string };
