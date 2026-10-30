@@ -1,20 +1,12 @@
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
-import { payPalUser } from "@/lib/auth";
 
-// Reads the session cookie, so it renders per request.
-export const instant = false;
-
-export default async function Home() {
-  const user = await payPalUser();
-  const startHref = user ? "/new" : "/api/auth/paypal/login?next=/new";
-  const demo = process.env.DEMO_MODE === "true";
-
+// For the hackathon the site is demo-only: every visitor gets a private guided trip.
+export default function Home() {
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 py-6 sm:px-6">
       <header className="flex items-center justify-between">
         <Logo />
-        {user && <span className="text-sm text-muted">Hi, {user.name.split(" ")[0]}</span>}
       </header>
 
       <section className="flex flex-1 flex-col justify-center py-16">
@@ -29,14 +21,10 @@ export default async function Home() {
           budget, then settles everyone up with direct PayPal payments between friends. Money never touches the app.
         </p>
         <div className="mt-10 flex flex-col gap-3 sm:flex-row">
-          <Link href={startHref} className="rounded-full bg-ink px-6 py-3 text-center font-semibold text-paper hover:opacity-90">
-            Start a trip
+          <Link href="/demo" className="rounded-full bg-ink px-6 py-3 text-center font-semibold text-paper hover:opacity-90">
+            Take the guided demo
           </Link>
-          {demo && (
-            <Link href="/demo" className="rounded-full border-2 border-ink px-6 py-3 text-center font-semibold hover:bg-honey-soft">
-              Take the guided demo · no login
-            </Link>
-          )}
+          <span className="self-center text-sm text-muted">No login needed · about 5 minutes</span>
         </div>
       </section>
 

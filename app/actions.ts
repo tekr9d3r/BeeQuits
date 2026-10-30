@@ -8,7 +8,6 @@ import { getBalances } from "@/lib/ledger/service";
 import { getSession } from "@/lib/session";
 import {
   addPlaceholder,
-  createTrip,
   getTripByPublicId,
   joinTrip,
   listMembers,
@@ -18,20 +17,6 @@ import {
 } from "@/lib/trips";
 import { loadMembership } from "@/lib/trip-view";
 import { eq } from "drizzle-orm";
-
-export async function startTrip(formData: FormData) {
-  const user = await payPalUser();
-  if (!user) redirect("/api/auth/paypal/login?next=/new");
-  const name = String(formData.get("name") ?? "").trim();
-  if (!name) throw new Error("Give your trip a name");
-  const trip = await createTrip({
-    name: name.slice(0, 80),
-    startDate: String(formData.get("startDate") ?? "") || null,
-    endDate: String(formData.get("endDate") ?? "") || null,
-    organizer: user,
-  });
-  redirect(`/t/${trip.publicId}`);
-}
 
 export async function joinTripAction(publicId: string, code: string, claimMemberId: string | null) {
   const [trip, user] = await Promise.all([getTripByPublicId(publicId), payPalUser()]);

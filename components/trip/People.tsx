@@ -55,22 +55,25 @@ export function People({
 
   return (
     <div className="flex flex-col gap-4 p-4 lg:p-0">
-      <Card title="Invite friends">
-        {trip.locked ? (
-          <p className="text-sm text-muted">🔒 The trip is locked, so new people can&apos;t join.</p>
-        ) : (
-          <div className="flex items-center gap-4">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={invite.qr} alt="Invite QR code" className="size-28 rounded-lg border border-line" />
-            <div className="flex min-w-0 flex-1 flex-col gap-2">
-              <p className="text-sm text-muted">Friends join with PayPal, so they can get paid back.</p>
-              <button onClick={share} className="rounded-full bg-ink px-4 py-2 text-sm font-semibold text-paper">
-                {copied ? "Link copied ✓" : "Share invite link"}
-              </button>
+      {/* Demo trips have fixed friends; an invite link would lead judges to a real PayPal login. */}
+      {!trip.isDemo && (
+        <Card title="Invite friends">
+          {trip.locked ? (
+            <p className="text-sm text-muted">🔒 The trip is locked, so new people can&apos;t join.</p>
+          ) : (
+            <div className="flex items-center gap-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={invite.qr} alt="Invite QR code" className="size-28 rounded-lg border border-line" />
+              <div className="flex min-w-0 flex-1 flex-col gap-2">
+                <p className="text-sm text-muted">Friends join with PayPal, so they can get paid back.</p>
+                <button onClick={share} className="rounded-full bg-ink px-4 py-2 text-sm font-semibold text-paper">
+                  {copied ? "Link copied ✓" : "Share invite link"}
+                </button>
+              </div>
             </div>
-          </div>
-        )}
-      </Card>
+          )}
+        </Card>
+      )}
 
       <Card title={`People (${snapshot.members.filter((m) => m.status === "active").length})`}>
         <ul className="divide-y divide-line">

@@ -113,11 +113,8 @@ export function DemoTour({
               <p className="font-semibold">🎉 That&apos;s BeeQuits! Everyone is quits.</p>
               <p className="mt-1 text-muted">Chat to log costs, PayPal to pay each other directly, and the bee in between.</p>
               <div className="mt-2 flex flex-wrap gap-2">
-                <Link href="/demo" className="rounded-full border-2 border-ink px-3 py-1 text-xs font-semibold">
+                <Link href="/demo" className="rounded-full bg-ink px-3 py-1 text-xs font-semibold text-paper">
                   Restart the tour
-                </Link>
-                <Link href="/new" className="rounded-full bg-ink px-3 py-1 text-xs font-semibold text-paper">
-                  Start a real trip
                 </Link>
               </div>
             </div>
