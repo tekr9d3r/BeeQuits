@@ -122,7 +122,7 @@ export async function createDemoTour(judgeName: string, startKey: string) {
   }
   await say(
     new Date(),
-    `👋 Welcome, ${judgeName}! Your friends have been logging the trip so far. Follow the **demo tour** above, or just tell me what you paid. Everything here is your private copy with PayPal sandbox money, so try anything.`,
+    `👋 Welcome, ${judgeName}! Your friends have been logging the trip so far. Tell me what you paid, pay your share of an expense with the PayPal button under it, or ask me for gear ideas. When the week is over, hit **Settle up**. This is your private copy with PayPal sandbox money, so try anything.`,
   );
   return { trip, judge };
 }

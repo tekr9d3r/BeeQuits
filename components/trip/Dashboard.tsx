@@ -2,6 +2,7 @@
 
 import { money } from "@/lib/format";
 import { Avatar } from "./Avatar";
+import { useState } from "react";
 import { SettleUp } from "./SettleUp";
 import { CATEGORY_LABEL, type Me, type TripInfo, type TripSnapshot } from "./types";
 
@@ -34,6 +35,8 @@ export function Dashboard({
           tone={mine && mine.netCents < 0 ? "warn" : "ok"}
         />
       </div>
+
+      {snapshot.status === "active" && snapshot.transfers.length > 0 && <SettleButton trip={trip} onDone={onPaid} />}
 
       <Card title="Balances">
         <ul className="divide-y divide-line">
@@ -107,6 +110,28 @@ export function Dashboard({
         )}
       </Card>
     </div>
+  );
+}
+
+// Asks the bee to settle up (through the chat, so the transfers and Pay buttons show there too).
+function SettleButton({ trip, onDone }: { trip: TripInfo; onDone: () => Promise<void> }) {
+  const [busy, setBusy] = useState(false);
+  return (
+    <button
+      disabled={busy}
+      onClick={async () => {
+        if (!confirm("Settle up now? The bee works out who pays whom and locks the ledger.")) return;
+        setBusy(true);
+        const body = new FormData();
+        body.set("text", "The trip is over, let's settle up!");
+        await fetch(`/api/trips/${trip.publicId}/messages`, { method: "POST", body });
+        await onDone();
+        setBusy(false);
+      }}
+      className="flex items-center justify-center gap-2 rounded-2xl bg-honey px-5 py-4 text-lg font-bold shadow-sm hover:bg-honey-strong disabled:opacity-60"
+    >
+      {busy ? "🐝 Working out the payments…" : "🤝 Settle up & close the trip"}
+    </button>
   );
 }
 

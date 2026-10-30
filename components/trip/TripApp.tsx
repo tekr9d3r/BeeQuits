@@ -51,12 +51,7 @@ export function TripApp(props: {
 
   const myName = snapshot.members.find((m) => m.id === me.memberId)?.name ?? "You";
 
-  function openTab(t: Tab) {
-    setTab(t);
-    if (t === "insights" && snapshot.tour && !snapshot.tour.insights) {
-      fetch(`/api/trips/${trip.publicId}/tour`, { method: "POST" }).then(refresh);
-    }
-  }
+
 
   return (
     <div className="flex h-dvh flex-col">
@@ -69,6 +64,11 @@ export function TripApp(props: {
               {trip.locked && " · 🔒 settling up"}
             </h1>
           </div>
+          {trip.isDemo && (
+            <a href="/demo" className="shrink-0 text-xs text-muted underline">
+              Restart demo
+            </a>
+          )}
         </div>
       </header>
 
@@ -76,7 +76,7 @@ export function TripApp(props: {
         {(["chat", "dashboard", "people", "insights"] as const).map((t) => (
           <button
             key={t}
-            onClick={() => openTab(t)}
+            onClick={() => setTab(t)}
             className={`flex-1 py-2.5 text-sm font-medium capitalize ${tab === t ? "border-b-2 border-ink" : "text-muted"}`}
           >
             {t}
@@ -93,7 +93,7 @@ export function TripApp(props: {
           ).map(([t, label]) => (
             <button
               key={t}
-              onClick={() => openTab(t)}
+              onClick={() => setTab(t)}
               className={`py-2.5 text-sm font-medium ${(tab === "insights") === (t === "insights") ? "border-b-2 border-ink" : "text-muted"}`}
             >
               {label}
@@ -116,7 +116,6 @@ export function TripApp(props: {
             snapshot={snapshot}
             paypalClientId={props.paypalClientId}
             onSent={refresh}
-            onOpenInsights={() => openTab("insights")}
           />
         </section>
         <aside className={`min-h-0 overflow-y-auto ${tab === "chat" ? "hidden" : "block"} lg:block`}>

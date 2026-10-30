@@ -3,7 +3,6 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import { money } from "@/lib/format";
 import { Avatar, BeeAvatar } from "./Avatar";
-import { DemoTour } from "./DemoTour";
 import { PayButton, SettleUp } from "./SettleUp";
 import type { ProductCard as ProductCardData } from "@/lib/db/schema";
 import { CATEGORY_LABEL, type ChatMessage, type Me, type TripInfo, type TripSnapshot } from "./types";
@@ -15,7 +14,6 @@ export function Chat({
   snapshot,
   paypalClientId,
   onSent,
-  onOpenInsights,
 }: {
   trip: TripInfo;
   me: Me;
@@ -23,7 +21,6 @@ export function Chat({
   snapshot: TripSnapshot;
   paypalClientId: string;
   onSent: () => Promise<void>;
-  onOpenInsights: () => void;
 }) {
   const [text, setText] = useState("");
   const [photo, setPhoto] = useState<File | null>(null);
@@ -50,7 +47,7 @@ export function Chat({
       "🔔 Remind everyone who still has to pay",
   ].filter((a): a is string => !!a);
 
-  // Posts a message and waits for the bee. Presets (quick actions, demo tour) leave the composer alone.
+  // Posts a message and waits for the bee. Presets (quick actions) leave the composer alone.
   async function post(message: string, file: File | null) {
     if (pending || (!message.trim() && !file)) return;
     const body = new FormData();
@@ -82,19 +79,6 @@ export function Chat({
   return (
     <>
       <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-4">
-        {snapshot.tour && (
-          <DemoTour
-            tour={snapshot.tour}
-            snapshot={snapshot}
-            busy={!!pending}
-            say={(t) => post(t, null)}
-            sendSampleReceipt={async () => {
-              const blob = await (await fetch("/demo/bar-receipt.png")).blob();
-              await post("", new File([blob], "bar-receipt.png", { type: "image/png" }));
-            }}
-            openInsights={onOpenInsights}
-          />
-        )}
         <div className="flex flex-col gap-3">
           {messages.map((m) => (
             <Message
