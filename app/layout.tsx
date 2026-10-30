@@ -9,7 +9,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "BeeQuits",
-  description: "Split trip costs in a chat. Settle up with PayPal.",
+  description: "Agent for your next trip. It tracks, budgets and settles up with PayPal.",
 };
 
 export const viewport: Viewport = { themeColor: "#ffffff" };

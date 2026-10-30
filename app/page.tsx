@@ -1,4 +1,4 @@
-import { ArrowRight, ChartColumn, Code, MessageCircle, ShieldCheck } from "lucide-react";
+import { ArrowRight, Calculator, Code, HandCoins, Lock, MessageCircle, PiggyBank, ShieldCheck, ShoppingBag } from "lucide-react";
 import Link from "next/link";
 import { BuiltWith } from "@/components/home/BuiltWith";
 import { PaymentCircle } from "@/components/home/PaymentCircle";
@@ -6,22 +6,33 @@ import { Logo } from "@/components/Logo";
 
 const REPO = "https://github.com/tekr9d3r/BeeQuits";
 
-const STEPS = [
+const AGENT_DOES = [
   {
     icon: MessageCircle,
-    title: "Chat it",
-    text: "Type “Paid 96€ at Spar, everyone except Sam” or snap a receipt. The AI turns it into a clean shared ledger and asks when something is unclear.",
+    title: "Understands",
+    text: "“Paid 96€ at Spar, everyone except Sam” or a receipt photo becomes a clean ledger entry. When a split is unclear, it asks.",
   },
   {
-    icon: ChartColumn,
-    title: "Track it",
-    text: "Live balances, spend against the group budget, and a heads-up before a category runs over.",
+    icon: PiggyBank,
+    title: "Plans",
+    text: "Proposes a budget from the trip details and warns the group before a category runs over.",
   },
   {
-    icon: ShieldCheck,
-    title: "Settle it",
-    text: "The fewest possible payments, each one sent directly from friend to friend with PayPal. Pay your share right away or at the end.",
+    icon: ShoppingBag,
+    title: "Shops",
+    text: "Finds gear the group needs with Channel3, within budget, and logs it once someone buys.",
   },
+  {
+    icon: HandCoins,
+    title: "Settles",
+    text: "Works out the fewest payments, sets them up in PayPal, and reminds whoever still owes.",
+  },
+];
+
+const AGENT_STOPS = [
+  { icon: ShieldCheck, title: "You approve every payment", text: "Each payment is confirmed by the payer in their own PayPal checkout. The agent never pays on its own." },
+  { icon: Calculator, title: "The math is plain code", text: "Balances and transfers are computed by deterministic, tested code. The agent calls it as a tool, it doesn't guess." },
+  { icon: Lock, title: "Money never touches the app", text: "Every payment goes directly from friend to friend on PayPal. BeeQuits only keeps the ledger." },
 ];
 
 // For the hackathon the site is demo-only: every visitor gets a private guided trip.
@@ -41,13 +52,14 @@ export default function Home() {
         {/* Hero */}
         <section className="mx-auto grid max-w-6xl items-center gap-12 px-5 py-16 lg:grid-cols-2 lg:py-24">
           <div>
-            <p className="text-sm font-semibold text-accent">Group trips, without the awkward money talk</p>
+            <p className="text-sm font-semibold text-accent">An AI money agent for group trips</p>
             <h1 className="mt-4 text-[40px] font-semibold leading-[1.08] tracking-tight sm:text-[56px]">
-              Split trip costs in a chat. Settle up with PayPal.
+              Agent for your next trip.
+              <span className="block text-muted">It tracks, budgets and settles up with PayPal.</span>
             </h1>
             <p className="mt-6 max-w-lg text-lg leading-relaxed text-muted">
-              BeeQuits is an AI money assistant for your group. It keeps the shared ledger and budget from plain chat messages, then
-              everyone pays each other back directly with PayPal. The app never holds your money.
+              Tell it what you paid, in plain words or with a receipt photo. The agent keeps the shared ledger, watches the budget,
+              finds gear, reminds people who owe, and settles everyone up with direct PayPal payments. It never holds your money.
             </p>
             <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:items-center">
               <Link
@@ -65,9 +77,10 @@ export default function Home() {
         {/* How it works */}
         <section className="border-t border-line bg-surface">
           <div className="mx-auto max-w-6xl px-5 py-20">
-            <h2 className="text-3xl font-semibold tracking-tight">How it works</h2>
-            <div className="mt-10 grid gap-6 sm:grid-cols-3">
-              {STEPS.map(({ icon: Icon, title, text }) => (
+            <h2 className="text-3xl font-semibold tracking-tight">What the agent does</h2>
+            <p className="mt-3 max-w-2xl text-lg text-muted">One agent in the group chat, with tools for the ledger, the budget, shopping and PayPal.</p>
+            <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              {AGENT_DOES.map(({ icon: Icon, title, text }) => (
                 <div key={title} className="rounded-2xl bg-bg p-6">
                   <span className="grid size-11 place-items-center rounded-full bg-accent-soft text-accent">
                     <Icon size={22} strokeWidth={1.75} />
@@ -80,14 +93,19 @@ export default function Home() {
           </div>
         </section>
 
-        {/* AI vs code */}
-        <section className="mx-auto max-w-3xl px-5 py-20 text-center">
-          <h2 className="text-3xl font-semibold tracking-tight">AI where it helps, code where it counts</h2>
-          <p className="mt-5 text-lg leading-relaxed text-muted">
-            Claude reads messy messages and receipt photos, asks when a split is unclear, suggests budgets, finds gear and reminds
-            people to pay. The money math is plain, tested code: balances and the minimal set of transfers are computed
-            deterministically. And money only ever moves on PayPal, directly between friends.
-          </p>
+        {/* Where the agent stops */}
+        <section className="mx-auto max-w-6xl px-5 py-20">
+          <h2 className="text-3xl font-semibold tracking-tight">Where the agent stops</h2>
+          <p className="mt-3 max-w-2xl text-lg text-muted">An agent that handles money needs clear limits. These are ours.</p>
+          <div className="mt-10 grid gap-8 sm:grid-cols-3">
+            {AGENT_STOPS.map(({ icon: Icon, title, text }) => (
+              <div key={title}>
+                <Icon size={22} strokeWidth={1.75} className="text-accent" />
+                <h3 className="mt-4 text-lg font-semibold">{title}</h3>
+                <p className="mt-2 leading-relaxed text-muted">{text}</p>
+              </div>
+            ))}
+          </div>
         </section>
 
         {/* Hackathon */}
