@@ -43,10 +43,6 @@ export default async function TripPage({ params }: { params: Promise<{ publicId:
         endDate: trip.endDate,
         isDemo: trip.isDemo,
         locked: trip.lockedAt !== null,
-        demoBuyer:
-          trip.isDemo && process.env.DEMO_BUYER_EMAIL
-            ? { email: process.env.DEMO_BUYER_EMAIL, password: process.env.DEMO_BUYER_PASSWORD ?? "" }
-            : null,
       }}
       me={{ memberId: me.id, role: me.role }}
       invite={invite}

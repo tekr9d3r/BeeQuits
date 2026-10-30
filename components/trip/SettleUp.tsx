@@ -101,39 +101,6 @@ export function SettleUp({
   );
 }
 
-// Demo only: the PayPal sandbox account to use in the checkout popup.
-function SandboxLogin({ email, password }: { email: string; password: string }) {
-  return (
-    <div className="mt-2 rounded-xl border border-line bg-bg px-3 py-2 text-[11px] text-muted">
-      <span className="font-medium text-ink">PayPal sandbox login for this demo</span>
-      <CopyRow label="Email" value={email} />
-      <CopyRow label="Password" value={password} />
-    </div>
-  );
-}
-
-function CopyRow({ label, value }: { label: string; value: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <div className="flex items-center justify-between gap-2">
-      <span className="truncate">
-        {label}: <span className="tabular text-ink">{value}</span>
-      </span>
-      <button
-        type="button"
-        onClick={async () => {
-          await navigator.clipboard.writeText(value);
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1500);
-        }}
-        className="shrink-0 font-semibold text-ink underline"
-      >
-        {copied ? "Copied" : "Copy"}
-      </button>
-    </div>
-  );
-}
-
 // Asks the bee (through the chat) to remind one person; the bee writes the reminder.
 function NudgeButton({ trip, text, onSent }: { trip: TripInfo; text: string; onSent: () => Promise<void> }) {
   const [state, setState] = useState<"idle" | "sending" | "sent">("idle");
@@ -231,7 +198,6 @@ export function PayButton({
       {state === "capturing" && <p className="text-xs text-muted">Confirming payment…</p>}
       <div ref={container} className={`min-h-10 ${state === "capturing" ? "hidden" : ""}`} />
       {error && <p className="mt-1 text-xs text-negative">{error}</p>}
-      {trip.demoBuyer && <SandboxLogin {...trip.demoBuyer} />}
     </div>
   );
 }

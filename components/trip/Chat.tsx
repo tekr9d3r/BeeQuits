@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowUp, BellRing, Camera, Check, Paperclip, Sparkles, type LucideIcon } from "lucide-react";
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { money } from "@/lib/format";
 import { Avatar, BeeAvatar } from "./Avatar";
 import { CategoryIcon } from "./CategoryIcon";
@@ -33,6 +33,7 @@ export function Chat({
   const bottom = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const nameOf = (id: string) => snapshot.members.find((m) => m.id === id)?.name ?? "Someone";
+  const hydrated = useHydrated();
   // Pay buttons appear under the bee's latest settle-up message only.
   const lastSettleUpSeq = messages.findLast((m) => m.attachments?.some((a) => a.type === "settle_up"))?.seq;
   const echoed = pending && messages.some((m) => m.seq > pending.afterSeq && m.memberId === me.memberId);
@@ -81,12 +82,14 @@ export function Chat({
 
   return (
     <>
-      <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-6">
-        <div className="mx-auto flex max-w-[720px] flex-col gap-4">
-          {messages.map((m) => (
+      <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto bg-surface px-4 py-6">
+        <div className="mx-auto flex max-w-[760px] flex-col">
+          {messages.map((m, i) => (
             <Message
               key={m.seq}
               message={m}
+              previous={messages[i - 1]}
+              hydrated={hydrated}
               mine={m.memberId === me.memberId}
               author={m.memberId ? nameOf(m.memberId) : null}
               snapshot={snapshot}
@@ -101,7 +104,7 @@ export function Chat({
           {pending && (
             <>
               {!echoed && (
-                <Bubble mine author={null}>
+                <Bubble mine author="You" startsGroup={!messages.length || messages.at(-1)!.memberId !== me.memberId}>
                   {pending.photoUrl && (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={pending.photoUrl} alt="Receipt" className="mb-2 max-h-48 rounded-lg" />
@@ -109,8 +112,8 @@ export function Chat({
                   {pending.text}
                 </Bubble>
               )}
-              <div className="flex items-center gap-2 text-sm text-muted">
-                <BeeAvatar size={28} />
+              <div className="mt-5 flex items-center gap-3 text-sm text-muted">
+                <BeeAvatar size={36} />
                 <span className="flex gap-1" aria-label="The bee is thinking">
                   {[0, 150, 300].map((d) => (
                     <span key={d} className="size-1.5 animate-pulse rounded-full bg-muted" style={{ animationDelay: `${d}ms` }} />
@@ -191,8 +194,21 @@ export function Chat({
   );
 }
 
+const GROUP_GAP_MS = 10 * 60_000;
+
+// Times and day labels depend on the viewer's timezone, so they're drawn only in the browser.
+function useHydrated() {
+  return useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+}
+
 function Message({
   message,
+  previous,
+  hydrated,
   mine,
   author,
   snapshot,
@@ -202,6 +218,8 @@ function Message({
   payShare,
 }: {
   message: ChatMessage;
+  previous?: ChatMessage;
+  hydrated: boolean;
   mine: boolean;
   author: string | null;
   snapshot: TripSnapshot;
@@ -212,39 +230,54 @@ function Message({
 }) {
   const isAgent = message.memberId === null;
   const member = snapshot.members.find((m) => m.id === message.memberId);
+  const at = new Date(message.createdAt);
+  const prevAt = previous ? new Date(previous.createdAt) : null;
+  const newDay = hydrated && (!prevAt || prevAt.toDateString() !== at.toDateString());
+  // Consecutive messages from one author within a few minutes share one header.
+  const startsGroup = !previous || newDay || previous.memberId !== message.memberId || at.getTime() - prevAt!.getTime() > GROUP_GAP_MS;
+
   return (
-    <Bubble
-      mine={mine}
-      agent={isAgent}
-      author={mine ? null : isAgent ? "BeeQuits" : author}
-      avatar={mine ? null : isAgent ? <BeeAvatar /> : <Avatar member={member} />}
-    >
-      {message.attachments?.map((a, i) =>
-        a.type === "receipt" ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img key={i} src={`/api/receipts/${a.receiptId}`} alt="Receipt" className="mb-2 max-h-48 rounded-xl" />
-        ) : null,
+    <>
+      {newDay && (
+        <div className="my-6 flex items-center gap-3 text-xs font-medium text-muted first:mt-0">
+          <span className="h-px flex-1 bg-line" />
+          {at.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short" })}
+          <span className="h-px flex-1 bg-line" />
+        </div>
       )}
-      {message.attachments?.some((a) => a.type === "settlement") ? (
-        <span className="flex items-start gap-1.5">
-          <Check size={16} className="mt-1 shrink-0 text-positive" />
+      <Bubble
+        mine={mine}
+        agent={isAgent}
+        startsGroup={startsGroup}
+        author={mine ? "You" : isAgent ? "BeeQuits" : author}
+        time={hydrated ? at.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : null}
+        avatar={isAgent ? <BeeAvatar size={36} /> : <Avatar member={member} size={36} />}
+      >
+        {message.attachments?.map((a, i) =>
+          a.type === "receipt" ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img key={i} src={`/api/receipts/${a.receiptId}`} alt="Receipt" className="mb-2 max-h-48 rounded-xl" />
+          ) : null,
+        )}
+        {message.attachments?.some((a) => a.type === "settlement") ? (
+          <span className="flex items-start gap-1.5">
+            <Check size={16} className="mt-1 shrink-0 text-positive" />
+            <RichText text={message.content} />
+          </span>
+        ) : (
           <RichText text={message.content} />
-        </span>
-      ) : (
-        <RichText text={message.content} />
-      )}
-      {message.attachments?.map((a, i) =>
-        a.type === "expense" ? (
-          <ExpenseCard key={i} expenseId={a.expenseId} snapshot={snapshot} trip={trip}>
-            {payShare(a.expenseId)}
-          </ExpenseCard>
-        ) : null,
-      )}
-      {message.attachments?.map((a, i) =>
-        a.type === "products" ? <ProductCards key={i} products={a.products} /> : null,
-      )}
-      {showSettleUp && snapshot.settlements.length > 0 && <div className="mt-3 w-80 max-w-full">{settleUp}</div>}
-    </Bubble>
+        )}
+        {message.attachments?.map((a, i) =>
+          a.type === "expense" ? (
+            <ExpenseCard key={i} expenseId={a.expenseId} snapshot={snapshot} trip={trip}>
+              {payShare(a.expenseId)}
+            </ExpenseCard>
+          ) : null,
+        )}
+        {message.attachments?.map((a, i) => (a.type === "products" ? <ProductCards key={i} products={a.products} /> : null))}
+        {showSettleUp && snapshot.settlements.length > 0 && <div className="mt-3 w-80 max-w-full">{settleUp}</div>}
+      </Bubble>
+    </>
   );
 }
 
@@ -252,23 +285,38 @@ function Bubble({
   mine,
   agent,
   author,
+  time,
   avatar,
+  startsGroup,
   children,
 }: {
   mine: boolean;
   agent?: boolean;
   author: string | null;
+  time?: string | null;
   avatar?: React.ReactNode;
+  startsGroup: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <div className={`flex min-w-0 max-w-[85%] items-start gap-2.5 ${mine ? "self-end" : "self-start"}`}>
-      {avatar}
-      <div className={`flex min-w-0 flex-col ${mine ? "items-end" : "items-start"}`}>
-        {author && <span className="mb-1 px-1 text-xs font-medium text-muted">{author}</span>}
+    <div className={`flex w-full min-w-0 gap-3 ${mine ? "flex-row-reverse" : ""} ${startsGroup ? "mt-5 first:mt-0" : "mt-1.5"}`}>
+      {/* Avatar column keeps grouped messages aligned under the first one. */}
+      <div className={`shrink-0 ${mine ? "hidden sm:block sm:w-9" : "w-9"}`}>{startsGroup && !mine && avatar}</div>
+      <div className={`flex min-w-0 max-w-[85%] flex-col sm:max-w-[78%] ${mine ? "items-end" : "items-start"}`}>
+        {startsGroup && (
+          <div className={`mb-1 flex items-center gap-2 px-1 text-xs ${mine ? "flex-row-reverse" : ""}`}>
+            <span className="font-semibold text-ink">{author}</span>
+            {agent && <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent">AI agent</span>}
+            {time && <span className="text-muted">{time}</span>}
+          </div>
+        )}
         <div
-          className={`min-w-0 max-w-full whitespace-pre-wrap rounded-[20px] px-4 py-2.5 text-[15px] leading-relaxed ${
-            mine ? "rounded-tr-md bg-ink text-bg" : agent ? "rounded-tl-md border border-line bg-bg" : "rounded-tl-md bg-surface"
+          className={`min-w-0 max-w-full whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-[15px] leading-relaxed shadow-[0_1px_2px_rgba(11,31,68,0.06)] ${
+            mine
+              ? "bg-ink text-bg"
+              : agent
+                ? "border border-line border-l-[3px] border-l-accent bg-bg"
+                : "border border-line bg-bg"
           }`}
         >
           {children}

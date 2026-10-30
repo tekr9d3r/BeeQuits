@@ -79,7 +79,7 @@ export default function DemoStart() {
           </ol>
           <p className="mt-6 flex items-start gap-2 text-sm text-muted">
             <Check size={16} className="mt-0.5 shrink-0 text-positive" />
-            The PayPal sandbox login for checkout is shown right under each Pay button.
+            To pay, log in to the PayPal checkout with the sandbox account from the project description.
           </p>
         </aside>
       </main>
