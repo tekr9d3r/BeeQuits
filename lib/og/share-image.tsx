@@ -10,8 +10,8 @@ const NAVY = "#0b1f44";
 const MUTED = "#5b6475";
 const ACCENT = "#0070e0";
 
-async function dataUrl(file: string, type: string) {
-  return `data:${type};base64,${(await readFile(join(process.cwd(), file))).toString("base64")}`;
+async function photo(name: string) {
+  return `data:image/jpeg;base64,${(await readFile(join(process.cwd(), "public/people", `${name}.jpg`))).toString("base64")}`;
 }
 
 // The social share card: logo, the pitch, and the demo friends settling up.
@@ -19,9 +19,9 @@ export async function shareImage() {
   const [medium, bold, emma, sam, olivia] = await Promise.all([
     readFile(join(process.cwd(), "assets/fonts/Inter-500.ttf")),
     readFile(join(process.cwd(), "assets/fonts/Inter-700.ttf")),
-    dataUrl("public/people/emma.jpg", "image/jpeg"),
-    dataUrl("public/people/sam.jpg", "image/jpeg"),
-    dataUrl("public/people/olivia.jpg", "image/jpeg"),
+    photo("emma"),
+    photo("sam"),
+    photo("olivia"),
   ]);
 
   const chip = (text: string) => (
