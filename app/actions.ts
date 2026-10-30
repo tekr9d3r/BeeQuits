@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { currentUser } from "@/lib/auth";
+import { payPalUser } from "@/lib/auth";
 import { isDemoUser } from "@/lib/demo";
 import { db, schema } from "@/lib/db";
 import { getBalances } from "@/lib/ledger/service";
@@ -20,7 +20,7 @@ import { loadMembership } from "@/lib/trip-view";
 import { eq } from "drizzle-orm";
 
 export async function startTrip(formData: FormData) {
-  const user = await currentUser();
+  const user = await payPalUser();
   if (!user) redirect("/api/auth/paypal/login?next=/new");
   const name = String(formData.get("name") ?? "").trim();
   if (!name) throw new Error("Give your trip a name");
@@ -34,7 +34,7 @@ export async function startTrip(formData: FormData) {
 }
 
 export async function joinTripAction(publicId: string, code: string, claimMemberId: string | null) {
-  const [trip, user] = await Promise.all([getTripByPublicId(publicId), currentUser()]);
+  const [trip, user] = await Promise.all([getTripByPublicId(publicId), payPalUser()]);
   if (!trip || trip.inviteCode !== code) throw new Error("This invite link is no longer valid");
   if (!user) redirect(`/api/auth/paypal/login?next=${encodeURIComponent(`/t/${publicId}/join?code=${code}`)}`);
   await joinTrip(trip, user, claimMemberId);

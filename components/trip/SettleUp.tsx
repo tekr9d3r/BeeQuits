@@ -98,8 +98,19 @@ export function PayButton({
   const container = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "capturing">("loading");
+  const [visible, setVisible] = useState(false);
+
+  // PayPal buttons are iframes; only create them once the card scrolls into view.
+  useEffect(() => {
+    const el = container.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(([entry]) => entry.isIntersecting && setVisible(true), { rootMargin: "200px" });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
+    if (!visible) return;
     let buttons: ReturnType<PayPalButtons> | null = null;
     let cancelled = false;
     let settlementId: string | null = null;
@@ -136,14 +147,14 @@ export function PayButton({
       cancelled = true;
       buttons?.close().catch(() => {});
     };
-  }, [orderUrl, clientId, trip.currency, onPaid]);
+  }, [visible, orderUrl, clientId, trip.currency, onPaid]);
 
   return (
     <div className="mt-2">
       {label && <p className="mb-1 text-xs font-medium">{label}</p>}
       {state === "loading" && <p className="text-xs text-muted">Loading PayPal…</p>}
       {state === "capturing" && <p className="text-xs text-muted">Confirming payment…</p>}
-      <div ref={container} className={state === "capturing" ? "hidden" : ""} />
+      <div ref={container} className={`min-h-10 ${state === "capturing" ? "hidden" : ""}`} />
       {error && <p className="mt-1 text-xs text-warn">{error}</p>}
     </div>
   );

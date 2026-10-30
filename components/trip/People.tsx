@@ -9,6 +9,7 @@ import {
   renameMemberAction,
   setLockedAction,
 } from "@/app/actions";
+import { Avatar } from "./Avatar";
 import { Card } from "./Dashboard";
 import type { Me, TripInfo, TripSnapshot } from "./types";
 
@@ -76,7 +77,7 @@ export function People({
           {snapshot.members.map((m) => (
             <li key={m.id} className={`flex items-center justify-between gap-2 py-2 text-sm ${m.status === "inactive" ? "opacity-50" : ""}`}>
               <span className="flex items-center gap-2">
-                <span className="grid size-8 place-items-center rounded-full bg-honey-soft font-semibold">{m.name[0]}</span>
+                <Avatar member={m} />
                 <span>
                   {m.name}
                   {m.id === me.memberId && <span className="text-muted"> (you)</span>}

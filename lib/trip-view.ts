@@ -1,5 +1,6 @@
 import { and, asc, eq, gt } from "drizzle-orm";
-import { currentUser } from "./auth";
+import { currentUser, isDemoAccount } from "./auth";
+import { avatarFor } from "./avatars";
 import { db, schema } from "./db";
 import { getBalances, getBudgetStatus, listExpenses } from "./ledger/service";
 import { listSettlements, listSharePayments } from "./settlements";
@@ -7,7 +8,8 @@ import { getTripByPublicId, listMembers } from "./trips";
 
 // Resolves the trip and the signed-in user's membership; null if either is missing.
 export async function loadMembership(publicId: string) {
-  const [trip, user] = await Promise.all([getTripByPublicId(publicId), currentUser()]);
+  const [trip, sessionUser] = await Promise.all([getTripByPublicId(publicId), currentUser()]);
+  const user = sessionUser && (trip?.isDemo || !isDemoAccount(sessionUser)) ? sessionUser : null;
   if (!trip) return { trip: null, user, me: null };
   if (!user) return { trip, user: null, me: null };
   const me = await db.query.tripMembers.findFirst({
@@ -40,8 +42,9 @@ export async function tripSnapshot(tripId: string) {
   const net = new Map(balances.map((b) => [b.memberId, b]));
   return {
     totalCents,
-    members: members.map((m) => ({
+    members: members.map((m, i) => ({
       id: m.id,
+      avatar: avatarFor(tripId, i),
       name: m.displayName,
       role: m.role,
       status: m.status,

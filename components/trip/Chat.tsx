@@ -2,6 +2,7 @@
 
 import { Fragment, useEffect, useRef, useState } from "react";
 import { money } from "@/lib/format";
+import { Avatar, BeeAvatar } from "./Avatar";
 import { PayButton, SettleUp } from "./SettleUp";
 import type { ProductCard as ProductCardData } from "@/lib/db/schema";
 import { CATEGORY_LABEL, type ChatMessage, type Me, type TripInfo, type TripSnapshot } from "./types";
@@ -162,8 +163,14 @@ function Message({
   payShare: (expenseId: string) => React.ReactNode;
 }) {
   const isAgent = message.memberId === null;
+  const member = snapshot.members.find((m) => m.id === message.memberId);
   return (
-    <Bubble mine={mine} agent={isAgent} author={mine ? null : isAgent ? "Bee" : author}>
+    <Bubble
+      mine={mine}
+      agent={isAgent}
+      author={mine ? null : isAgent ? "Bee" : author}
+      avatar={mine ? null : isAgent ? <BeeAvatar /> : <Avatar member={member} />}
+    >
       {message.attachments?.map((a, i) =>
         a.type === "receipt" ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -190,22 +197,27 @@ function Bubble({
   mine,
   agent,
   author,
+  avatar,
   children,
 }: {
   mine: boolean;
   agent?: boolean;
   author: string | null;
+  avatar?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
-    <div className={`flex min-w-0 max-w-[85%] flex-col ${mine ? "self-end items-end" : "self-start items-start"}`}>
-      {author && <span className="mb-0.5 px-1 text-xs text-muted">{agent ? "🐝 Bee" : author}</span>}
-      <div
-        className={`min-w-0 max-w-full whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-[15px] leading-snug ${
-          mine ? "bg-ink text-paper" : agent ? "bg-honey-soft" : "border border-line bg-card"
-        }`}
-      >
-        {children}
+    <div className={`flex min-w-0 max-w-[88%] items-end gap-2 ${mine ? "self-end" : "self-start"}`}>
+      {avatar}
+      <div className={`flex min-w-0 flex-col ${mine ? "items-end" : "items-start"}`}>
+        {author && <span className="mb-0.5 px-1 text-xs text-muted">{author}</span>}
+        <div
+          className={`min-w-0 max-w-full whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-[15px] leading-snug ${
+            mine ? "bg-ink text-paper" : agent ? "bg-honey-soft" : "border border-line bg-card"
+          }`}
+        >
+          {children}
+        </div>
       </div>
     </div>
   );
@@ -302,28 +314,37 @@ function PayShare({
   paypalClientId: string;
   onPaid: () => Promise<void>;
 }) {
-  const [open, setOpen] = useState(false);
   const e = snapshot.expenses.find((x) => x.id === expenseId);
-  const share = e?.shares[me.memberId];
-  if (!e || !share || e.paidBy === me.memberId) return null;
-  const payer = snapshot.members.find((m) => m.id === e.paidBy);
+  if (!e || snapshot.status !== "active") return null;
+  const member = (id: string) => snapshot.members.find((m) => m.id === id);
+  const payer = member(e.paidBy);
 
+  // The payer sees who can pay them back right here.
+  if (e.paidBy === me.memberId) {
+    const owing = e.splitWith.filter((id) => id !== me.memberId && !e.sharePaidBy.includes(id)).map((id) => member(id)?.name);
+    const paid = e.sharePaidBy.map((id) => member(id)?.name);
+    if (!owing.length && !paid.length) return null;
+    return (
+      <p className="mt-1.5 text-xs text-muted">
+        {paid.length > 0 && <span className="font-medium text-ok">✓ {paid.join(", ")} paid you back. </span>}
+        {owing.length > 0 && `${owing.join(", ")} can pay their share right here, or at the final settle-up.`}
+      </p>
+    );
+  }
+
+  const share = e.shares[me.memberId];
+  if (!share) return null;
   if (e.sharePaidBy.includes(me.memberId)) {
     return <p className="mt-1.5 text-xs font-medium text-ok">✓ You paid your share ({money(share, trip.currency)})</p>;
   }
-  if (snapshot.status !== "active" || !payer?.joined) return null;
-  if (!open) {
-    return (
-      <button onClick={() => setOpen(true)} className="mt-2 rounded-full bg-honey px-3 py-1 text-xs font-semibold hover:bg-honey-strong">
-        Pay my share now · {money(share, trip.currency)}
-      </button>
-    );
+  if (!payer?.joined) {
+    return <p className="mt-1.5 text-xs text-muted">You can pay {payer?.name ?? "them"} back once they join with PayPal.</p>;
   }
   return (
     <div className="mt-2 border-t border-line pt-2">
       <PayButton
         orderUrl={`/api/expenses/${expenseId}/pay-share`}
-        label={`Pay ${payer.name} ${money(share, trip.currency)}, or leave it for the final settle-up`}
+        label={`Your share: ${money(share, trip.currency)} to ${payer.name}. Pay now, or leave it for the final settle-up.`}
         trip={trip}
         clientId={paypalClientId}
         onPaid={onPaid}

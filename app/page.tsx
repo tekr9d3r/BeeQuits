@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
-import { currentUser } from "@/lib/auth";
+import { payPalUser } from "@/lib/auth";
 
 // Reads the session cookie, so it renders per request.
 export const instant = false;
 
 export default async function Home() {
-  const user = await currentUser();
+  const user = await payPalUser();
   const startHref = user ? "/new" : "/api/auth/paypal/login?next=/new";
   const demo = process.env.DEMO_MODE === "true";
 

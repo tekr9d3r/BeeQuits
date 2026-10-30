@@ -1,13 +1,13 @@
 import { redirect } from "next/navigation";
 import { startTrip } from "@/app/actions";
 import { Logo } from "@/components/Logo";
-import { currentUser } from "@/lib/auth";
+import { payPalUser } from "@/lib/auth";
 
 // Reads the session cookie, so it renders per request.
 export const instant = false;
 
 export default async function NewTrip() {
-  if (!(await currentUser())) redirect("/api/auth/paypal/login?next=/new");
+  if (!(await payPalUser())) redirect("/api/auth/paypal/login?next=/new");
   return (
     <main className="mx-auto w-full max-w-md flex-1 px-4 py-6">
       <Logo />

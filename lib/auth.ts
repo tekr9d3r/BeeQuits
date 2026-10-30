@@ -8,6 +8,17 @@ export async function currentUser() {
   return (await db.query.users.findFirst({ where: eq(schema.users.id, session.userId) })) ?? null;
 }
 
+// A user who logged in with PayPal. Demo sessions (the "view as" crew) only count inside the
+// demo trip, so creating or joining a real trip always goes through Log in with PayPal.
+export async function payPalUser() {
+  const user = await currentUser();
+  return user && !isDemoAccount(user) ? user : null;
+}
+
+export function isDemoAccount(user: { paypalUserId: string }) {
+  return user.paypalUserId.startsWith("demo:");
+}
+
 // Only same-site paths, so the login redirect can't be abused as an open redirect.
 export function safeReturnTo(value: string | null | undefined): string {
   return value && value.startsWith("/") && !value.startsWith("//") ? value : "/";

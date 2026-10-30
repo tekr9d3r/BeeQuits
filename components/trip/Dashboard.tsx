@@ -1,6 +1,7 @@
 "use client";
 
 import { money } from "@/lib/format";
+import { Avatar } from "./Avatar";
 import { SettleUp } from "./SettleUp";
 import { CATEGORY_LABEL, type Me, type TripInfo, type TripSnapshot } from "./types";
 
@@ -37,8 +38,9 @@ export function Dashboard({
       <Card title="Balances">
         <ul className="divide-y divide-line">
           {active.map((m) => (
-            <li key={m.id} className="flex items-center justify-between py-2 text-sm">
-              <span>
+            <li key={m.id} className="flex items-center justify-between gap-2 py-2 text-sm">
+              <Avatar member={m} size={28} />
+              <span className="flex-1">
                 {m.name}
                 {m.id === me.memberId && <span className="text-muted"> (you)</span>}
                 <span className="block text-xs text-muted">
