@@ -39,13 +39,29 @@ export function Chat({
     bottom.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length, pending]);
 
-  async function send(e: React.FormEvent) {
-    e.preventDefault();
-    if (pending || (!text.trim() && !photo)) return;
+  // Suggestions for the next useful thing to ask the bee, shown as one-tap chips.
+  const quickActions = [
+    !snapshot.budget.some((b) => b.budgetCents !== null) && snapshot.status === "active" && "💡 Suggest a budget for our trip",
+    snapshot.status === "settling" &&
+      snapshot.settlements.some((s) => s.status !== "captured") &&
+      "🔔 Remind everyone who still has to pay",
+  ].filter((a): a is string => !!a);
+
+  async function send(e: React.FormEvent | null, preset?: string) {
+    e?.preventDefault();
+    const message = preset ?? text;
+    if (pending || (!message.trim() && !photo)) return;
     const body = new FormData();
-    body.set("text", text);
-    if (photo) body.set("photo", photo);
-    setPending({ text, photoUrl: photo ? URL.createObjectURL(photo) : null, afterSeq: messages.at(-1)?.seq ?? 0 });
+    body.set("text", message);
+    if (photo && !preset) body.set("photo", photo);
+    setPending({ text: message, photoUrl: photo && !preset ? URL.createObjectURL(photo) : null, afterSeq: messages.at(-1)?.seq ?? 0 });
+    if (preset) {
+      const res = await fetch(`/api/trips/${trip.publicId}/messages`, { method: "POST", body });
+      if (!res.ok) setError(await res.text());
+      await onSent();
+      setPending(null);
+      return;
+    }
     setText("");
     setPhoto(null);
     setError(null);
@@ -96,6 +112,20 @@ export function Chat({
       </div>
 
       <form onSubmit={send} className="border-t border-line bg-card p-3">
+        {quickActions.length > 0 && !pending && (
+          <div className="mb-2 flex flex-wrap gap-2">
+            {quickActions.map((a) => (
+              <button
+                key={a}
+                type="button"
+                onClick={() => send(null, a.replace(/^\S+\s/, ""))}
+                className="rounded-full border border-honey-strong bg-honey-soft px-3 py-1 text-xs font-medium hover:bg-honey"
+              >
+                {a}
+              </button>
+            ))}
+          </div>
+        )}
         {photo && (
           <div className="mb-2 flex items-center justify-between rounded-lg bg-honey-soft px-3 py-1.5 text-sm">
             <span className="truncate">📎 {photo.name}</span>

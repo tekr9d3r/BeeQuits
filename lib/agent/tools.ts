@@ -129,6 +129,26 @@ export const TOOLS: Anthropic.Tool[] = [
     input_schema: { type: "object", properties: {}, additionalProperties: false },
   },
   {
+    name: "set_budgets",
+    description: "Save a whole budget at once (one amount per category), e.g. after the group agreed to your proposal.",
+    input_schema: {
+      type: "object",
+      properties: {
+        budgets: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: { category: { type: "string", enum: [...CATEGORIES] }, amount: { type: "number" } },
+            required: ["category", "amount"],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ["budgets"],
+      additionalProperties: false,
+    },
+  },
+  {
     name: "get_budget_status",
     description: "Spent vs budget per category.",
     input_schema: { type: "object", properties: {}, additionalProperties: false },
@@ -242,6 +262,11 @@ export async function runTool(name: string, input: any, ctx: ToolContext): Promi
     case "set_budget":
       await setBudget(ctx.tripId, input.category, cents(input.amount));
       return JSON.stringify({ ok: true });
+    case "set_budgets":
+      for (const b of input.budgets as { category: string; amount: number }[]) {
+        await setBudget(ctx.tripId, b.category, cents(b.amount));
+      }
+      return JSON.stringify({ ok: true, saved: input.budgets.length });
     case "get_budget_status":
       return JSON.stringify(
         (await getBudgetStatus(ctx.tripId)).map((r) => ({

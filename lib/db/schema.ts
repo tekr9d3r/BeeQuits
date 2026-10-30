@@ -35,6 +35,7 @@ export const trips = pgTable("trips", {
   status: text({ enum: ["active", "settling", "closed"] }).notNull().default("active"),
   lockedAt: timestamp({ withTimezone: true }),
   isDemo: boolean().notNull().default(false),
+  lastNudgedAt: timestamp({ withTimezone: true }),
   createdBy: uuid().references(() => users.id),
   createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 });

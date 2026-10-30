@@ -15,6 +15,13 @@
       "when": 1793273213821,
       "tag": "0001_share_payments",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793357262623,
+      "tag": "0002_nudges",
+      "breakpoints": true
     }
   ]
 }

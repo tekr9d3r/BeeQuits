@@ -72,12 +72,43 @@ export function SettleUp({
                 onPaid={onPaid}
               />
             ) : (
-              <p className="mt-0.5 text-xs text-muted">Waiting for {name(s.from)} to pay</p>
+              <div className="mt-0.5 flex items-center justify-between text-xs text-muted">
+                <span>Waiting for {name(s.from)} to pay</span>
+                {s.to === me.memberId && (
+                  <NudgeButton
+                    trip={trip}
+                    text={`Can you remind ${name(s.from)} to pay me ${money(s.amountCents, trip.currency)}?`}
+                    onSent={onPaid}
+                  />
+                )}
+              </div>
             )}
           </div>
         );
       })}
     </div>
+  );
+}
+
+// Asks the bee (through the chat) to remind one person; the bee writes the reminder.
+function NudgeButton({ trip, text, onSent }: { trip: TripInfo; text: string; onSent: () => Promise<void> }) {
+  const [state, setState] = useState<"idle" | "sending" | "sent">("idle");
+  if (state === "sent") return <span className="font-medium text-ok">Reminder sent 🔔</span>;
+  return (
+    <button
+      disabled={state === "sending"}
+      onClick={async () => {
+        setState("sending");
+        const body = new FormData();
+        body.set("text", text);
+        await fetch(`/api/trips/${trip.publicId}/messages`, { method: "POST", body });
+        await onSent();
+        setState("sent");
+      }}
+      className="font-semibold text-ink underline disabled:opacity-50"
+    >
+      {state === "sending" ? "Nudging…" : "🔔 Nudge"}
+    </button>
   );
 }
 
