@@ -52,7 +52,7 @@ export default async function JoinPage({
               <p className="mt-8 text-muted">
                 Log in with PayPal to join. Your PayPal email is where friends will pay you back. BeeQuits never holds money.
               </p>
-              <a href={loginHref} className="mt-4 block rounded-full bg-ink px-6 py-3 text-center font-semibold text-paper">
+              <a href={loginHref} className="mt-4 block rounded-full bg-ink px-6 py-3 text-center font-semibold text-bg">
                 Log in with PayPal
               </a>
             </>
@@ -61,13 +61,13 @@ export default async function JoinPage({
               {placeholders.length > 0 && <p className="font-medium">Are you one of these?</p>}
               {placeholders.map((p) => (
                 <form key={p.id} action={joinTripAction.bind(null, publicId, code, p.id)}>
-                  <button className="w-full rounded-full border-2 border-ink px-6 py-3 font-semibold hover:bg-honey-soft">
+                  <button className="w-full rounded-full border-2 border-ink px-6 py-3 font-semibold hover:bg-accent-soft">
                     I&apos;m {p.displayName}
                   </button>
                 </form>
               ))}
               <form action={joinTripAction.bind(null, publicId, code, null)}>
-                <button className="w-full rounded-full bg-ink px-6 py-3 font-semibold text-paper">
+                <button className="w-full rounded-full bg-ink px-6 py-3 font-semibold text-bg">
                   {placeholders.length ? `No, join as ${user.name.split(" ")[0]}` : `Join as ${user.name.split(" ")[0]}`}
                 </button>
               </form>

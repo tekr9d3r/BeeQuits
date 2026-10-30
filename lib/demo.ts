@@ -1,6 +1,5 @@
 import { and, eq, lt, sql } from "drizzle-orm";
 import { customAlphabet } from "nanoid";
-import { avatarFor } from "./avatars";
 import { db, schema } from "./db";
 import { addExpense, setBudget, type Category } from "./ledger/service";
 
@@ -22,11 +21,11 @@ const BUDGET: [Category, number][] = [
 const HISTORY: [number, FriendKey, number, Category, string, string, string][] = [
   [0, "emma", 1280, "lodging", "Chalet in Sölden", "Paid the chalet, 1280€ for the week", "Logged €1,280.00 lodging (chalet), paid by Emma, split 4 ways."],
   [0, "olivia", 86.4, "transport", "Fuel + Austrian vignette", "fuel and the vignette on the way, 86.40", "Logged €86.40 transport, paid by Olivia, split 4 ways."],
-  [1, "sam", 1140, "lift_passes", "4x 6-day lift passes", "Bought 4 six-day lift passes, 1140", "Logged €1,140.00 lift passes, paid by Sam, split 4 ways. 🎿"],
+  [1, "sam", 1140, "lift_passes", "4x 6-day lift passes", "Bought 4 six-day lift passes, 1140", "Logged €1,140.00 lift passes, paid by Sam, split 4 ways."],
   [1, "emma", 312, "rental", "Ski & boot rental", "Rental shop 312€ for all of us", "Logged €312.00 rental, paid by Emma, split 4 ways."],
   [2, "sam", 96.2, "groceries", "Spar groceries", "Spar run 96.20", "Logged €96.20 groceries (Spar), paid by Sam, split 4 ways."],
   [3, "olivia", 118.5, "food_drinks", "Pizzeria dinner", "Pizza night was 118.50, I got it", "Logged €118.50 food & drinks, paid by Olivia, split 4 ways."],
-  [4, "emma", 64, "apres_ski", "Après-ski round", "Après round 64€ 🍻", "Logged €64.00 après-ski, paid by Emma, split 4 ways (€16.00 each). 🍻"],
+  [4, "emma", 64, "apres_ski", "Après-ski round", "Après round 64€ 🍻", "Logged €64.00 après-ski, paid by Emma, split 4 ways (€16.00 each)."],
   [4, "sam", 142, "food_drinks", "Fondue dinner", "Fondue tonight 142€ 🧀", "Logged €142.00 food & drinks, paid by Sam, split 4 ways."],
 ];
 
@@ -102,9 +101,9 @@ export async function createDemoTour(judgeName: string, startKey: string) {
   const say = (createdAt: Date, content: string, memberId: string | null = null, attachments: (typeof schema.messages.$inferInsert)["attachments"] = null) =>
     db.insert(schema.messages).values({ tripId: trip.id, memberId, content, attachments, createdAt });
 
-  await say(at(-1), `🐝 Hi! I'm the money bee for **Ski week in Sölden**. Tell me what you paid or snap a receipt, and I'll keep the ledger and settle everyone up with PayPal at the end.`);
+  await say(at(-1), `Hi! I'm the money bee for **Ski week in Sölden**. Tell me what you paid or snap a receipt, and I'll keep the ledger and settle everyone up with PayPal at the end.`);
   for (const [i, f] of DEMO_FRIENDS.entries()) {
-    await say(at(-1, i + 1), `${avatarFor(trip.id, i + 1).emoji} ${f.name} joined the trip via PayPal.`);
+    await say(at(-1, i + 1), `${f.name} joined the trip with PayPal.`);
   }
   for (const [i, [day, payer, amount, category, description, said, reply]] of HISTORY.entries()) {
     const when = at(day, 600 + i * 7);

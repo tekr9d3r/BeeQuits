@@ -153,14 +153,14 @@ export async function markCaptured(paypalOrderId: string, captureId: string) {
   const how = captureId === SIMULATED ? " (simulated demo friend)" : " via PayPal";
   await db.insert(schema.messages).values({
     tripId: updated.tripId,
-    content: `✅ ${name(updated.fromMember)} paid ${name(updated.toMember)} ${money(updated.amountCents, trip!.currency)}${forWhat}${how}.`,
+    content: `${name(updated.fromMember)} paid ${name(updated.toMember)} ${money(updated.amountCents, trip!.currency)}${forWhat}${how}.`,
     attachments: [{ type: "settlement", settlementId: updated.id }],
   });
   if (trip!.status === "settling" && all.length > 0 && all.every((s) => s.status === "captured")) {
     await db.update(trips).set({ status: "closed" }).where(eq(trips.id, updated.tripId));
     await db.insert(schema.messages).values({
       tripId: updated.tripId,
-      content: "🎉 Everyone is quits! All payments went straight between you on PayPal. Thanks for flying with BeeQuits 🐝",
+      content: "Everyone is quits 🎉 All payments went directly between you on PayPal. Thanks for using BeeQuits.",
     });
   }
 }

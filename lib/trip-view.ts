@@ -42,9 +42,9 @@ export async function tripSnapshot(tripId: string) {
   const net = new Map(balances.map((b) => [b.memberId, b]));
   return {
     totalCents,
-    members: members.map((m, i) => ({
+    members: members.map((m) => ({
       id: m.id,
-      avatar: avatarFor(tripId, i),
+      avatar: avatarFor(m),
       name: m.displayName,
       role: m.role,
       status: m.status,

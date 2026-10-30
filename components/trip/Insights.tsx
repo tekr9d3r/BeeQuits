@@ -10,19 +10,23 @@ if (process.env.NEXT_PUBLIC_AG_STUDIO_LICENSE_KEY) {
   AgStudioLicenseManager.setLicenseKey(process.env.NEXT_PUBLIC_AG_STUDIO_LICENSE_KEY);
 }
 
-// Bee palette for Studio's UI and chart series.
+// The app palette for Studio's UI and chart series: navy and a blue scale.
 const theme = studioTheme.withParams({
-  accentColor: "#e0a800",
-  fontFamily: "var(--font-geist-sans), system-ui, sans-serif",
+  accentColor: "#0070e0",
+  foregroundColor: "#0b1f44",
+  textColor: "#0b1f44",
+  subtleTextColor: "#5b6475",
+  borderColor: "#e6e9ef",
+  fontFamily: "var(--font-inter), system-ui, sans-serif",
   borderRadius: 12,
-  chartPaletteFills1Color: "#ffc629",
-  chartPaletteFills2Color: "#1b1a17",
-  chartPaletteFills3Color: "#c2410c",
-  chartPaletteFills4Color: "#1f8a4c",
-  chartPaletteFills5Color: "#8a6d1f",
-  chartPaletteFills6Color: "#ffe08a",
-  chartPaletteFills7Color: "#6b6559",
-  chartPaletteFills8Color: "#f59e0b",
+  chartPaletteFills1Color: "#0070e0",
+  chartPaletteFills2Color: "#0b1f44",
+  chartPaletteFills3Color: "#7db4f2",
+  chartPaletteFills4Color: "#0a7a46",
+  chartPaletteFills5Color: "#b9d6f8",
+  chartPaletteFills6Color: "#5b6475",
+  chartPaletteFills7Color: "#b42318",
+  chartPaletteFills8Color: "#c9d1de",
 });
 
 const f = (id: string, aggregation?: "sum" | "count") => ({ id, ...(aggregation && { aggregation }) });
@@ -76,8 +80,8 @@ function buildReport(mobile: boolean): AgReportState {
         layout: {
           minWidth: mobile ? 0 : 760,
           rowHeight: 24,
-          backgroundColor: "#fffbf0",
-          widgetBorderColor: "#ede6d3",
+          backgroundColor: "#f5f7fa",
+          widgetBorderColor: "#e6e9ef",
           widgetBorderRadius: 16,
         },
         widgets: {
@@ -129,7 +133,7 @@ export default function Insights({ snapshot }: { snapshot: TripSnapshot }) {
   const key = JSON.stringify([snapshot.expenses, snapshot.budget, snapshot.members]);
   const data = useMemo(() => {
     const name = (id: string) => snapshot.members.find((m) => m.id === id)?.name ?? "?";
-    const label = (c: string) => (CATEGORY_LABEL[c] ?? c).replace(/^\S+\s/, "");
+    const label = (c: string) => CATEGORY_LABEL[c] ?? c;
     return {
       sources: [
         {

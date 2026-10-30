@@ -26,14 +26,14 @@ export type TripInfo = {
 export type Me = { memberId: string; role: "organizer" | "member" };
 
 export const CATEGORY_LABEL: Record<string, string> = {
-  lodging: "🏠 Lodging",
-  lift_passes: "🎿 Lift passes",
-  rental: "⛷️ Rental",
-  transport: "🚗 Transport",
-  groceries: "🛒 Groceries",
-  food_drinks: "🍕 Food & drinks",
-  apres_ski: "🍻 Après-ski",
-  gear: "🧢 Gear",
-  activities: "🏂 Activities",
-  other: "📦 Other",
+  lodging: "Lodging",
+  lift_passes: "Lift passes",
+  rental: "Rental",
+  transport: "Transport",
+  groceries: "Groceries",
+  food_drinks: "Food & drinks",
+  apres_ski: "Après-ski",
+  gear: "Gear",
+  activities: "Activities",
+  other: "Other",
 };

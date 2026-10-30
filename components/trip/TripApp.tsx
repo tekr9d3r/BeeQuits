@@ -1,17 +1,19 @@
 "use client";
 
+import { ChartColumn, MessageCircle, RotateCcw, Wallet, type LucideIcon } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Logo } from "@/components/Logo";
+import { Avatar } from "./Avatar";
 import { Chat } from "./Chat";
-import { Dashboard } from "./Dashboard";
-import { People } from "./People";
+import { Overview } from "./Overview";
+import { PeopleSheet } from "./PeopleSheet";
 import type { ChatMessage, Me, TripInfo, TripSnapshot } from "./types";
 
 const POLL_MS = 2500;
-type Tab = "chat" | "dashboard" | "people" | "insights";
+type Tab = "chat" | "overview" | "insights";
 
-// AG Studio is heavy and browser-only, so it loads when the Insights tab is first opened.
+// AG Studio is heavy and browser-only, so it loads when Insights is first opened.
 const Insights = dynamic(() => import("./Insights"), {
   ssr: false,
   loading: () => <p className="p-6 text-sm text-muted">Loading insights…</p>,
@@ -30,6 +32,7 @@ export function TripApp(props: {
   const [messages, setMessages] = useState(props.initialMessages);
   const [snapshot, setSnapshot] = useState(props.initialSnapshot);
   const [tab, setTab] = useState<Tab>("chat");
+  const [peopleOpen, setPeopleOpen] = useState(false);
   const lastSeq = useRef(props.initialMessages.at(-1)?.seq ?? 0);
 
   const refresh = useCallback(async () => {
@@ -50,83 +53,105 @@ export function TripApp(props: {
   }, [refresh]);
 
   const myName = snapshot.members.find((m) => m.id === me.memberId)?.name ?? "You";
-
-
+  const active = snapshot.members.filter((m) => m.status === "active");
 
   return (
-    <div className="flex h-dvh flex-col">
-      <header className="border-b border-line bg-card px-4 py-3">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
-          <div className="min-w-0">
-            <Logo />
-            <h1 className="truncate text-sm text-muted">
-              {trip.name}
-              {trip.locked && " · 🔒 settling up"}
-            </h1>
-          </div>
-          {trip.isDemo && (
-            <a href="/demo" className="shrink-0 text-xs text-muted underline">
-              Restart demo
-            </a>
-          )}
+    <div className="flex h-dvh flex-col bg-bg">
+      <header className="flex h-14 shrink-0 items-center gap-4 border-b border-line px-4 lg:px-6">
+        <div className="hidden lg:block">
+          <Logo />
         </div>
-      </header>
+        <div className="min-w-0 flex-1 lg:flex-none lg:border-l lg:border-line lg:pl-4">
+          <p className="truncate text-[15px] font-semibold leading-tight">{trip.name}</p>
+          <p className="truncate text-xs text-muted">
+            {tripDates(trip)}
+            {trip.locked && " · Settling up"}
+          </p>
+        </div>
 
-      <nav className="flex border-b border-line bg-card lg:hidden">
-        {(["chat", "dashboard", "people", "insights"] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`flex-1 py-2.5 text-sm font-medium capitalize ${tab === t ? "border-b-2 border-ink" : "text-muted"}`}
-          >
-            {t}
-          </button>
-        ))}
-      </nav>
-      <nav className="hidden border-b border-line bg-card lg:block">
-        <div className="mx-auto flex max-w-6xl gap-6 px-4">
+        <div className="mx-auto hidden rounded-full bg-surface p-1 lg:flex">
           {(
             [
               ["chat", "Trip"],
               ["insights", "Insights"],
             ] as const
-          ).map(([t, label]) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`py-2.5 text-sm font-medium ${(tab === "insights") === (t === "insights") ? "border-b-2 border-ink" : "text-muted"}`}
-            >
-              {label}
-            </button>
-          ))}
+          ).map(([t, label]) => {
+            const selected = (tab === "insights") === (t === "insights");
+            return (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={`rounded-full px-5 py-1.5 text-sm font-medium transition ${selected ? "bg-bg text-ink shadow-sm" : "text-muted hover:text-ink"}`}
+              >
+                {label}
+              </button>
+            );
+          })}
         </div>
+
+        <button onClick={() => setPeopleOpen(true)} className="flex shrink-0 items-center -space-x-2" aria-label="People in this trip">
+          {active.slice(0, 4).map((m) => (
+            <Avatar key={m.id} member={m} size={30} ring />
+          ))}
+        </button>
+        {trip.isDemo && (
+          <a href="/demo" className="hidden shrink-0 items-center gap-1 text-xs text-muted hover:text-ink sm:flex" title="Start the demo over">
+            <RotateCcw size={14} /> Restart demo
+          </a>
+        )}
+      </header>
+
+      <main className="min-h-0 flex-1">
+        {tab === "insights" ? (
+          <div className="h-full overflow-y-auto bg-surface lg:p-6">
+            <div className="mx-auto h-full max-w-6xl">
+              <Insights snapshot={snapshot} />
+            </div>
+          </div>
+        ) : (
+          <div className="grid h-full grid-cols-1 lg:grid-cols-[minmax(0,1fr)_400px]">
+            <section className={`min-h-0 flex-col ${tab === "chat" ? "flex" : "hidden"} lg:flex`}>
+              <Chat trip={trip} me={me} messages={messages} snapshot={snapshot} paypalClientId={props.paypalClientId} onSent={refresh} />
+            </section>
+            <aside className={`min-h-0 overflow-y-auto border-line lg:block lg:border-l ${tab === "overview" ? "block" : "hidden"}`}>
+              <Overview trip={trip} me={me} snapshot={snapshot} paypalClientId={props.paypalClientId} onPaid={refresh} />
+            </aside>
+          </div>
+        )}
+      </main>
+
+      <nav className="grid shrink-0 grid-cols-3 border-t border-line bg-bg pb-[env(safe-area-inset-bottom)] lg:hidden">
+        <TabButton icon={MessageCircle} label="Chat" active={tab === "chat"} onClick={() => setTab("chat")} />
+        <TabButton icon={Wallet} label="Overview" active={tab === "overview"} onClick={() => setTab("overview")} />
+        <TabButton icon={ChartColumn} label="Insights" active={tab === "insights"} onClick={() => setTab("insights")} />
       </nav>
 
-      {tab === "insights" && (
-        <div className="mx-auto min-h-0 w-full max-w-6xl flex-1 overflow-y-auto lg:p-4">
-          <Insights snapshot={snapshot} />
-        </div>
+      {peopleOpen && (
+        <PeopleSheet
+          trip={trip}
+          me={me}
+          myName={myName}
+          invite={props.invite}
+          snapshot={snapshot}
+          onChange={refresh}
+          onClose={() => setPeopleOpen(false)}
+        />
       )}
-      <div className={`mx-auto ${tab === "insights" ? "hidden" : "grid"} min-h-0 w-full max-w-6xl flex-1 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-6 lg:px-4 lg:py-4`}>
-        <section className={`min-h-0 flex-col ${tab === "chat" ? "flex" : "hidden"} lg:flex lg:rounded-2xl lg:border lg:border-line lg:bg-card`}>
-          <Chat
-            trip={trip}
-            me={me}
-            messages={messages}
-            snapshot={snapshot}
-            paypalClientId={props.paypalClientId}
-            onSent={refresh}
-          />
-        </section>
-        <aside className={`min-h-0 overflow-y-auto ${tab === "chat" ? "hidden" : "block"} lg:block`}>
-          <div className={tab === "people" ? "hidden lg:block" : ""}>
-            <Dashboard trip={trip} me={me} snapshot={snapshot} paypalClientId={props.paypalClientId} onPaid={refresh} />
-          </div>
-          <div className={tab === "dashboard" ? "hidden lg:block" : "lg:mt-6"}>
-            <People trip={trip} me={me} myName={myName} invite={props.invite} snapshot={snapshot} onChange={refresh} />
-          </div>
-        </aside>
-      </div>
     </div>
   );
+}
+
+function TabButton({ icon: Icon, label, active, onClick }: { icon: LucideIcon; label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className={`flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium ${active ? "text-accent" : "text-muted"}`}>
+      <Icon size={22} strokeWidth={active ? 2 : 1.75} />
+      {label}
+    </button>
+  );
+}
+
+function tripDates(trip: TripInfo) {
+  if (!trip.startDate || !trip.endDate) return "Group trip";
+  const fmt = (d: string) => new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  return `${fmt(trip.startDate)} – ${fmt(trip.endDate)}`;
 }

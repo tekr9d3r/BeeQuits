@@ -35,14 +35,14 @@ export async function maybeAutoNudge(trip: Trip) {
 }
 
 async function writeNudge(tripName: string, open: string[]) {
-  const fallback = `🔔 Friendly reminder from your money bee: ${open.join("; ")}. Tap your Pay button and we're all quits! 🐝`;
+  const fallback = `Friendly reminder: ${open.join("; ")}. One tap on your PayPal button and everyone is quits.`;
   try {
     const response = await client.messages.create({
       model: MODEL,
       max_tokens: 1000,
       output_config: { effort: "low" },
       system:
-        "You are BeeQuits, the friendly money bee of a group trip. Write a short, warm, lightly funny reminder (2-4 lines) for friends who still haven't paid their settle-up. Name each person, the amount and who they pay. Remind them it's one tap on their PayPal button. No guilt-tripping. Start with 🔔.",
+        "You are BeeQuits, the friendly money bee of a group trip. Write a short, warm, lightly funny reminder (2-4 lines) for friends who still haven't paid their settle-up. Name each person, the amount and who they pay. Remind them it's one tap on their PayPal button. No guilt-tripping. At most one emoji.",
       messages: [{ role: "user", content: `Trip: ${tripName}\nStill open:\n${open.join("\n")}` }],
     });
     const text = response.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("\n").trim();

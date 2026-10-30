@@ -1,8 +1,10 @@
 "use client";
 
+import { ArrowUp, BellRing, Camera, Check, Paperclip, Sparkles, type LucideIcon } from "lucide-react";
 import { Fragment, useEffect, useRef, useState } from "react";
 import { money } from "@/lib/format";
 import { Avatar, BeeAvatar } from "./Avatar";
+import { CategoryIcon } from "./CategoryIcon";
 import { PayButton, SettleUp } from "./SettleUp";
 import type { ProductCard as ProductCardData } from "@/lib/db/schema";
 import { CATEGORY_LABEL, type ChatMessage, type Me, type TripInfo, type TripSnapshot } from "./types";
@@ -40,12 +42,13 @@ export function Chat({
   }, [messages.length, pending]);
 
   // Suggestions for the next useful thing to ask the bee, shown as one-tap chips.
-  const quickActions = [
-    !snapshot.budget.some((b) => b.budgetCents !== null) && snapshot.status === "active" && "💡 Suggest a budget for our trip",
-    snapshot.status === "settling" &&
-      snapshot.settlements.some((s) => s.status !== "captured") &&
-      "🔔 Remind everyone who still has to pay",
-  ].filter((a): a is string => !!a);
+  const quickActions: { label: string; text: string; icon: LucideIcon }[] = [];
+  if (!snapshot.budget.some((b) => b.budgetCents !== null) && snapshot.status === "active") {
+    quickActions.push({ label: "Suggest a budget", text: "Suggest a budget for our trip", icon: Sparkles });
+  }
+  if (snapshot.status === "settling" && snapshot.settlements.some((s) => s.status !== "captured")) {
+    quickActions.push({ label: "Remind who still owes", text: "Remind everyone who still has to pay", icon: BellRing });
+  }
 
   // Posts a message and waits for the bee. Presets (quick actions) leave the composer alone.
   async function post(message: string, file: File | null) {
@@ -78,8 +81,8 @@ export function Chat({
 
   return (
     <>
-      <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-4">
-        <div className="flex flex-col gap-3">
+      <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-6">
+        <div className="mx-auto flex max-w-[720px] flex-col gap-4">
           {messages.map((m) => (
             <Message
               key={m.seq}
@@ -107,34 +110,42 @@ export function Chat({
                 </Bubble>
               )}
               <div className="flex items-center gap-2 text-sm text-muted">
-                <span className="animate-bounce">🐝</span> reading…
+                <BeeAvatar size={28} />
+                <span className="flex gap-1" aria-label="The bee is thinking">
+                  {[0, 150, 300].map((d) => (
+                    <span key={d} className="size-1.5 animate-pulse rounded-full bg-muted" style={{ animationDelay: `${d}ms` }} />
+                  ))}
+                </span>
               </div>
             </>
           )}
-          {error && <p className="text-sm text-warn">{error}</p>}
+          {error && <p className="text-sm text-negative">{error}</p>}
           <div ref={bottom} />
         </div>
       </div>
 
-      <form onSubmit={send} className="border-t border-line bg-card p-3">
+      <form onSubmit={send} className="border-t border-line bg-bg px-4 py-3">
+        <div className="mx-auto max-w-[720px]">
         {quickActions.length > 0 && !pending && (
           <div className="mb-2 flex flex-wrap gap-2">
-            {quickActions.map((a) => (
+            {quickActions.map(({ label, text: preset, icon: Icon }) => (
               <button
-                key={a}
+                key={label}
                 type="button"
-                onClick={() => send(null, a.replace(/^\S+\s/, ""))}
-                className="rounded-full border border-honey-strong bg-honey-soft px-3 py-1 text-xs font-medium hover:bg-honey"
+                onClick={() => send(null, preset)}
+                className="flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-xs font-medium text-ink hover:border-accent hover:text-accent"
               >
-                {a}
+                <Icon size={14} /> {label}
               </button>
             ))}
           </div>
         )}
         {photo && (
-          <div className="mb-2 flex items-center justify-between rounded-lg bg-honey-soft px-3 py-1.5 text-sm">
-            <span className="truncate">📎 {photo.name}</span>
-            <button type="button" onClick={() => setPhoto(null)} className="ml-2 font-semibold">
+          <div className="mb-2 flex items-center justify-between rounded-xl bg-surface px-3 py-1.5 text-sm">
+            <span className="flex min-w-0 items-center gap-1.5 truncate">
+              <Paperclip size={14} /> {photo.name}
+            </span>
+            <button type="button" onClick={() => setPhoto(null)} className="ml-2 text-accent">
               Remove
             </button>
           </div>
@@ -144,9 +155,9 @@ export function Chat({
             type="button"
             onClick={() => fileInput.current?.click()}
             aria-label="Add receipt photo"
-            className="grid size-11 shrink-0 place-items-center rounded-full border border-line text-lg hover:bg-honey-soft"
+            className="grid size-11 shrink-0 place-items-center rounded-full text-muted hover:bg-surface hover:text-ink"
           >
-            📷
+            <Camera size={20} strokeWidth={1.75} />
           </button>
           <input
             ref={fileInput}
@@ -164,14 +175,16 @@ export function Chat({
             }}
             rows={1}
             placeholder='e.g. "Paid 96€ at Spar, everyone except Sam"'
-            className="max-h-32 min-h-11 flex-1 resize-none rounded-2xl border border-line bg-paper px-4 py-2.5 outline-none focus:border-honey-strong"
+            className="max-h-32 min-h-11 flex-1 resize-none rounded-3xl border border-line bg-surface px-4 py-2.5 text-[15px] outline-none placeholder:text-muted focus:border-accent focus:bg-bg"
           />
           <button
+            aria-label="Send"
             disabled={!!pending || (!text.trim() && !photo)}
-            className="h-11 shrink-0 rounded-full bg-ink px-5 font-semibold text-paper disabled:opacity-40"
+            className="grid size-11 shrink-0 place-items-center rounded-full bg-ink text-bg transition disabled:opacity-30"
           >
-            Send
+            <ArrowUp size={20} />
           </button>
+        </div>
         </div>
       </form>
     </>
@@ -203,16 +216,23 @@ function Message({
     <Bubble
       mine={mine}
       agent={isAgent}
-      author={mine ? null : isAgent ? "Bee" : author}
+      author={mine ? null : isAgent ? "BeeQuits" : author}
       avatar={mine ? null : isAgent ? <BeeAvatar /> : <Avatar member={member} />}
     >
       {message.attachments?.map((a, i) =>
         a.type === "receipt" ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img key={i} src={`/api/receipts/${a.receiptId}`} alt="Receipt" className="mb-2 max-h-48 rounded-lg" />
+          <img key={i} src={`/api/receipts/${a.receiptId}`} alt="Receipt" className="mb-2 max-h-48 rounded-xl" />
         ) : null,
       )}
-      <RichText text={message.content} />
+      {message.attachments?.some((a) => a.type === "settlement") ? (
+        <span className="flex items-start gap-1.5">
+          <Check size={16} className="mt-1 shrink-0 text-positive" />
+          <RichText text={message.content} />
+        </span>
+      ) : (
+        <RichText text={message.content} />
+      )}
       {message.attachments?.map((a, i) =>
         a.type === "expense" ? (
           <ExpenseCard key={i} expenseId={a.expenseId} snapshot={snapshot} trip={trip}>
@@ -223,7 +243,7 @@ function Message({
       {message.attachments?.map((a, i) =>
         a.type === "products" ? <ProductCards key={i} products={a.products} /> : null,
       )}
-      {showSettleUp && snapshot.settlements.length > 0 && <div className="mt-2 w-72 max-w-full">{settleUp}</div>}
+      {showSettleUp && snapshot.settlements.length > 0 && <div className="mt-3 w-80 max-w-full">{settleUp}</div>}
     </Bubble>
   );
 }
@@ -242,13 +262,13 @@ function Bubble({
   children: React.ReactNode;
 }) {
   return (
-    <div className={`flex min-w-0 max-w-[88%] items-end gap-2 ${mine ? "self-end" : "self-start"}`}>
+    <div className={`flex min-w-0 max-w-[85%] items-start gap-2.5 ${mine ? "self-end" : "self-start"}`}>
       {avatar}
       <div className={`flex min-w-0 flex-col ${mine ? "items-end" : "items-start"}`}>
-        {author && <span className="mb-0.5 px-1 text-xs text-muted">{author}</span>}
+        {author && <span className="mb-1 px-1 text-xs font-medium text-muted">{author}</span>}
         <div
-          className={`min-w-0 max-w-full whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-[15px] leading-snug ${
-            mine ? "bg-ink text-paper" : agent ? "bg-honey-soft" : "border border-line bg-card"
+          className={`min-w-0 max-w-full whitespace-pre-wrap rounded-[20px] px-4 py-2.5 text-[15px] leading-relaxed ${
+            mine ? "rounded-tr-md bg-ink text-bg" : agent ? "rounded-tl-md border border-line bg-bg" : "rounded-tl-md bg-surface"
           }`}
         >
           {children}
@@ -284,14 +304,20 @@ function ExpenseCard({
   if (!e) return null;
   const name = (id: string) => snapshot.members.find((m) => m.id === id)?.name ?? "?";
   return (
-    <div id={`expense-${e.id}`} className="mt-2 scroll-mt-24 rounded-xl border border-line bg-card px-3 py-2 text-sm">
-      <div className="flex items-baseline justify-between gap-4">
-        <span className="font-medium">{e.description}</span>
-        <span className="font-mono font-semibold">{money(e.amountCents, trip.currency)}</span>
+    <div id={`expense-${e.id}`} className="mt-3 w-80 max-w-full scroll-mt-24 rounded-2xl border border-line bg-bg p-3 text-sm text-ink">
+      <div className="flex items-center gap-3">
+        <span className="grid size-9 shrink-0 place-items-center rounded-full bg-surface text-ink">
+          <CategoryIcon category={e.category} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-medium">{e.description}</p>
+          <p className="truncate text-xs text-muted">
+            {CATEGORY_LABEL[e.category] ?? e.category} · Paid by {name(e.paidBy)}
+          </p>
+        </div>
+        <span className="tabular font-semibold">{money(e.amountCents, trip.currency)}</span>
       </div>
-      <div className="mt-0.5 text-xs text-muted">
-        {CATEGORY_LABEL[e.category] ?? e.category} · paid by {name(e.paidBy)} · split {e.splitWith.map(name).join(", ")}
-      </div>
+      <p className="mt-2 truncate text-xs text-muted">Split with {e.splitWith.map(name).join(", ")}</p>
       {children}
     </div>
   );
@@ -303,16 +329,16 @@ function ProductCards({ products }: { products: ProductCardData[] }) {
   return (
     <div className="mt-2 flex w-full max-w-full snap-x snap-mandatory gap-2 overflow-x-auto overscroll-x-contain pb-1">
       {products.map((p) => (
-        <div key={p.url} className="flex w-40 shrink-0 snap-start flex-col overflow-hidden rounded-xl border border-line bg-card">
+        <div key={p.url} className="flex w-40 shrink-0 snap-start flex-col overflow-hidden rounded-2xl border border-line bg-bg text-ink">
           {p.imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={p.imageUrl} alt="" className="aspect-square w-full bg-white object-contain p-2" />
           ) : (
-            <div className="grid aspect-square place-items-center text-3xl">🛍️</div>
+            <div className="aspect-square bg-surface" />
           )}
           <div className="flex flex-1 flex-col gap-1 p-2 text-xs">
             <p className="line-clamp-2 font-medium leading-tight">{p.title}</p>
-            <p className="font-mono text-sm font-semibold">
+            <p className="tabular text-sm font-semibold">
               {p.approxTripCurrency !== null ? `≈ €${p.approxTripCurrency.toFixed(0)}` : `${p.price} ${p.currency}`}
               {p.approxTripCurrency !== null && <span className="ml-1 font-sans text-[11px] font-normal text-muted">${p.price}</span>}
             </p>
@@ -321,7 +347,7 @@ function ProductCards({ products }: { products: ProductCardData[] }) {
               href={p.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-auto rounded-full border border-ink py-1 text-center font-semibold hover:bg-honey-soft"
+              className="mt-auto rounded-full border border-line py-1 text-center font-medium text-accent hover:border-accent"
             >
               View
             </a>
@@ -361,7 +387,7 @@ function PayShare({
     if (!owing.length && !paid.length) return null;
     return (
       <p className="mt-1.5 text-xs text-muted">
-        {paid.length > 0 && <span className="font-medium text-ok">✓ {paid.join(", ")} paid you back. </span>}
+        {paid.length > 0 && <span className="font-medium text-positive">{paid.join(", ")} paid you back. </span>}
         {owing.length > 0 && `${owing.join(", ")} can pay their share right here, or at the final settle-up.`}
       </p>
     );
@@ -370,16 +396,20 @@ function PayShare({
   const share = e.shares[me.memberId];
   if (!share) return null;
   if (e.sharePaidBy.includes(me.memberId)) {
-    return <p className="mt-1.5 text-xs font-medium text-ok">✓ You paid your share ({money(share, trip.currency)})</p>;
+    return (
+      <p className="mt-2 flex items-center gap-1 text-xs font-medium text-positive">
+        <Check size={14} /> You paid your share ({money(share, trip.currency)})
+      </p>
+    );
   }
   if (!payer?.joined) {
     return <p className="mt-1.5 text-xs text-muted">You can pay {payer?.name ?? "them"} back once they join with PayPal.</p>;
   }
   return (
-    <div className="mt-2 border-t border-line pt-2">
+    <div className="mt-3 border-t border-line pt-3">
       <PayButton
         orderUrl={`/api/expenses/${expenseId}/pay-share`}
-        label={`Your share: ${money(share, trip.currency)} to ${payer.name}. Pay now, or leave it for the final settle-up.`}
+        label={`Your share is ${money(share, trip.currency)}. Pay ${payer.name} now, or at the final settle-up.`}
         trip={trip}
         clientId={paypalClientId}
         onPaid={onPaid}
