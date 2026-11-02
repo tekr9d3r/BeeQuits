@@ -1,5 +1,6 @@
 "use client";
 
+import { Check, Copy } from "lucide-react";
 import { useState } from "react";
 import { money } from "@/lib/format";
 import { Avatar } from "./Avatar";
@@ -96,6 +97,44 @@ export function Overview({
           </ul>
         )}
       </Section>
+
+      {trip.demoBuyer && (
+        <Section title="Sandbox account for judges">
+          <p className="text-sm leading-relaxed text-muted">
+            When the PayPal window opens, log in with this test account. It&apos;s PayPal sandbox money, nothing real is charged.
+          </p>
+          <div className="mt-3 divide-y divide-line rounded-2xl border border-line">
+            <CopyField label="Email" value={trip.demoBuyer.email} />
+            <CopyField label="Password" value={trip.demoBuyer.password} />
+          </div>
+        </Section>
+      )}
+    </div>
+  );
+}
+
+function CopyField({ label, value }: { label: string; value: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="flex items-center gap-3 px-4 py-3">
+      <div className="min-w-0 flex-1">
+        <p className="text-xs text-muted">{label}</p>
+        <p className="truncate text-sm font-medium">{value}</p>
+      </div>
+      <button
+        type="button"
+        onClick={async () => {
+          await navigator.clipboard.writeText(value);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        }}
+        className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+          copied ? "border-positive text-positive" : "border-line text-ink hover:border-accent hover:text-accent"
+        }`}
+      >
+        {copied ? <Check size={14} /> : <Copy size={14} />}
+        {copied ? "Copied" : "Copy"}
+      </button>
     </div>
   );
 }
