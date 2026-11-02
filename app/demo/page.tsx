@@ -1,16 +1,15 @@
-import { Check } from "lucide-react";
+import { Info, MessageCircle, UserPlus, Wallet } from "lucide-react";
 import { notFound } from "next/navigation";
 import { DemoStartForm } from "@/components/DemoStartForm";
+import { ChatPreview } from "@/components/home/ChatPreview";
 import { Logo } from "@/components/Logo";
 import { photoFor } from "@/lib/avatars";
 import { DEMO_FRIENDS } from "@/lib/demo";
 
 const STEPS = [
-  "Log a cost by chatting with the bee",
-  "Pay your share of the drinks with PayPal",
-  "Ask for new ski gear ideas",
-  "Explore the Insights dashboard",
-  "Settle up and close the trip",
+  { icon: UserPlus, title: "Join the trip", text: "You get your own copy of the trip, with three friends already in it." },
+  { icon: MessageCircle, title: "Chat with the agent", text: "Tell it what you paid, ask for a budget or for new ski gear." },
+  { icon: Wallet, title: "Settle with PayPal", text: "Pay friends back for single costs, or settle everything at the end." },
 ];
 
 export default function DemoStart() {
@@ -23,19 +22,27 @@ export default function DemoStart() {
         </div>
       </header>
 
-      <main className="mx-auto grid w-full max-w-5xl flex-1 gap-12 px-5 py-12 lg:grid-cols-[1fr_380px] lg:py-20">
+      <div className="border-b border-line bg-accent-soft">
+        <p className="mx-auto flex max-w-5xl items-start gap-2 px-5 py-3 text-sm text-ink">
+          <Info size={16} className="mt-0.5 shrink-0 text-accent" />
+          <span>
+            This demo is set up for <strong className="font-semibold">PayPal AI Hackathon judges</strong>. Everything runs on the PayPal
+            sandbox, so no real money moves.
+          </span>
+        </p>
+      </div>
+
+      <main className="mx-auto grid w-full max-w-5xl flex-1 gap-12 px-5 py-12 lg:grid-cols-[1fr_400px] lg:py-16">
         <div>
-          <p className="text-sm font-semibold text-accent">Live demo · about 5 minutes</p>
-          <h1 className="mt-3 text-4xl font-semibold tracking-tight">Your ski week in Sölden</h1>
+          <h1 className="text-4xl font-semibold tracking-tight">A ski week with three friends</h1>
           <p className="mt-4 max-w-lg text-lg leading-relaxed text-muted">
-            You&apos;re organizing a ski week with three friends who have already logged the first days. You get your own private copy
-            of the trip. Every payment is a real PayPal <span className="font-medium text-ink">sandbox</span> payment, so no real money
-            moves.
+            You&apos;re in Sölden with Emma, Sam and Olivia. They&apos;ve already paid for the chalet, lift passes and a few dinners. Use
+            the BeeQuits agent to add your own costs, pay your friends back with PayPal and settle up at the end.
           </p>
 
           <DemoStartForm>
             <label className="flex flex-col gap-2">
-              <span className="text-sm font-medium">Your name</span>
+              <span className="text-sm font-medium">What should your friends call you?</span>
               <input
                 name="name"
                 defaultValue="Alex"
@@ -45,7 +52,7 @@ export default function DemoStart() {
             </label>
 
             <div>
-              <span className="text-sm font-medium">Your friends</span>
+              <span className="text-sm font-medium">Your friends on this trip</span>
               <ul className="mt-2 divide-y divide-line rounded-2xl border border-line">
                 {DEMO_FRIENDS.map((f) => {
                   const photo = photoFor(f.key);
@@ -53,34 +60,45 @@ export default function DemoStart() {
                     <li key={f.key} className="flex items-center gap-3 px-4 py-3">
                       {photo ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={photo} alt="" className="size-9 rounded-full object-cover" />
+                        <img src={photo} alt="" className="size-10 rounded-full object-cover" />
                       ) : (
-                        <span className="grid size-9 place-items-center rounded-full bg-surface text-sm font-semibold">{f.name[0]}</span>
+                        <span className="grid size-10 place-items-center rounded-full bg-surface text-sm font-semibold">{f.name[0]}</span>
                       )}
-                      <span className="flex-1 text-[15px] font-medium">{f.name}</span>
-                      <span className="hidden truncate text-xs text-muted sm:block">{f.email}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[15px] font-medium">{f.name}</p>
+                        <p className="truncate text-xs text-muted">Test PayPal account · {f.email}</p>
+                      </div>
+                      <span className="shrink-0 rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-semibold text-accent">PayPal sandbox</span>
                     </li>
                   );
                 })}
               </ul>
+              <p className="mt-2 text-xs leading-relaxed text-muted">
+                Each friend has a PayPal sandbox account, so when you pay them in the demo, a real test payment lands in their account.
+              </p>
             </div>
           </DemoStartForm>
         </div>
 
-        <aside className="h-fit rounded-3xl bg-surface p-6">
-          <h2 className="font-semibold">What you&apos;ll try</h2>
-          <ol className="mt-4 flex flex-col gap-3">
-            {STEPS.map((s, i) => (
-              <li key={s} className="flex gap-3 text-[15px]">
-                <span className="grid size-6 shrink-0 place-items-center rounded-full bg-bg text-xs font-semibold">{i + 1}</span>
-                {s}
+        <aside className="h-fit rounded-3xl border border-line p-6">
+          <h2 className="font-semibold">How it works</h2>
+          <ol className="mt-5 flex flex-col gap-5">
+            {STEPS.map(({ icon: Icon, title, text }, i) => (
+              <li key={title} className="flex gap-3">
+                <span className="grid size-9 shrink-0 place-items-center rounded-full bg-surface text-ink">
+                  <Icon size={18} strokeWidth={1.75} />
+                </span>
+                <div>
+                  <p className="text-[15px] font-medium">
+                    {i + 1}. {title}
+                  </p>
+                  <p className="mt-0.5 text-sm leading-relaxed text-muted">{text}</p>
+                </div>
               </li>
             ))}
           </ol>
-          <p className="mt-6 flex items-start gap-2 text-sm text-muted">
-            <Check size={16} className="mt-0.5 shrink-0 text-positive" />
-            To pay, log in to the PayPal checkout with the sandbox account from the project description.
-          </p>
+          <p className="mb-3 mt-7 text-xs font-medium text-muted">A taste of the chat</p>
+          <ChatPreview friendPhoto={photoFor("emma")} />
         </aside>
       </main>
     </div>

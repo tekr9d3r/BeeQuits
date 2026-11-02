@@ -14,7 +14,7 @@ export function DemoStartForm({ children }: { children: React.ReactNode }) {
         const key = e.currentTarget.elements.namedItem("startKey") as HTMLInputElement;
         if (!key.value) key.value = crypto.randomUUID();
       }}
-      className="mt-10 flex max-w-lg flex-col gap-6"
+      className="mt-8 flex max-w-lg flex-col gap-6"
     >
       <input type="hidden" name="startKey" defaultValue="" />
       {children}
@@ -27,7 +27,7 @@ function SubmitButton() {
   const { pending } = useFormStatus();
   return (
     <button disabled={pending} className="rounded-full bg-ink px-6 py-3.5 font-semibold text-bg hover:bg-ink/90 disabled:opacity-60">
-      {pending ? "Setting up your trip…" : "Invite friends & open the trip"}
+      {pending ? "Setting up your trip…" : "Join the trip"}
     </button>
   );
 }
