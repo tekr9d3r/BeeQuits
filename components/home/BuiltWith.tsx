@@ -2,9 +2,10 @@ import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 
 const PARTNERS = [
-  { key: "paypal", name: "PayPal", role: "Payments, login & webhooks" },
-  { key: "aggrid", name: "AG Grid", role: "AG Studio insights" },
-  { key: "channel3", name: "Channel3", role: "Product search" },
+  { key: "paypal", name: "PayPal", url: "https://www.paypal.com" },
+  { key: "aggrid", name: "AG Grid", url: "https://www.ag-grid.com" },
+  { key: "channel3", name: "Channel3", url: "https://trychannel3.com" },
+  { key: "render", name: "Render", url: "https://render.com" },
 ];
 
 // Partner logos from public/logos/<key>.<ext>; falls back to the name until the file is added.
@@ -17,20 +18,24 @@ function logoFile(key: string) {
 
 export function BuiltWith() {
   return (
-    <ul className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+    <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">
       {PARTNERS.map((p) => {
         const logo = logoFile(p.key);
         return (
-          <li key={p.key} className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-line px-6 py-6 text-center">
-            <div className="flex h-10 items-center">
+          <li key={p.key}>
+            <a
+              href={p.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex h-24 items-center justify-center rounded-2xl border border-line px-6 transition hover:border-ink/20 hover:shadow-sm"
+            >
               {logo ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={logo} alt={p.name} className="max-h-9 max-w-[140px] object-contain grayscale transition hover:grayscale-0" />
+                <img src={logo} alt={p.name} className="max-h-8 max-w-[130px] object-contain" />
               ) : (
                 <span className="text-xl font-semibold tracking-tight">{p.name}</span>
               )}
-            </div>
-            <span className="text-xs text-muted">{p.role}</span>
+            </a>
           </li>
         );
       })}
