@@ -8,8 +8,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  // Absolute base for the share image URLs.
-  metadataBase: new URL(process.env.SITE_URL ?? "https://beequits.onrender.com"),
+  // Absolute base for the share image URLs (Render sets RENDER_EXTERNAL_URL).
+  metadataBase: new URL(process.env.SITE_URL ?? process.env.RENDER_EXTERNAL_URL ?? "http://localhost:3000"),
   title: "BeeQuits",
   description: "Agent for your next trip. It tracks, budgets and settles up with PayPal.",
   openGraph: { title: "BeeQuits", description: "Agent for your next trip. It tracks, budgets and settles up with PayPal.", type: "website" },

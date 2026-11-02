@@ -6,8 +6,6 @@
 
 Chat your trip costs to the agent. It logs and splits them, keeps the group budget, finds gear, and at the end works out the fewest payments needed. Everyone pays their friends directly with PayPal; money never goes through the app.
 
-**Live demo:** [beequits.onrender.com](https://beequits.onrender.com) (PayPal sandbox, no sign-up)
-
 Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/).
 
 ## Built with
