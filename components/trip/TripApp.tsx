@@ -105,7 +105,7 @@ export function TripApp(props: {
         {tab === "insights" ? (
           <div className="h-full overflow-y-auto bg-surface lg:p-6">
             <div className="mx-auto h-full max-w-6xl">
-              <Insights snapshot={snapshot} />
+              <Insights snapshot={snapshot} publicId={trip.publicId} />
             </div>
           </div>
         ) : (

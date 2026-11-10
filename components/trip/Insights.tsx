@@ -1,8 +1,19 @@
 "use client";
 
 import { AgStudio } from "ag-studio-react";
-import { AgStudioLicenseManager, studioTheme, type AgReportState } from "ag-studio";
+import {
+  AgStudioAiModule,
+  AgStudioLicenseManager,
+  createAiHarness,
+  studioTheme,
+  type AgAiPromptStarter,
+  type AgPanelConfig,
+  type AgReportState,
+  type AgStudioApi,
+  type AgStudioProperties,
+} from "ag-studio";
 import { useMemo, useSyncExternalStore } from "react";
+import { insightsAdapter } from "./insightsAdapter";
 import { CATEGORY_LABEL, type TripSnapshot } from "./types";
 
 // Without a key Studio runs with a trial watermark.
@@ -111,6 +122,18 @@ function buildReport(mobile: boolean): AgReportState {
   };
 }
 
+// Desktop gets AG Studio's assistant (Claude via our server). Its chat panel only exists in edit mode,
+// so we show just the assistant and the filters, without Studio's manual editing panels.
+const AI_PANELS: AgPanelConfig = { edit: { left: ["ai"], right: ["filters"] } };
+const AI_MODULES = [AgStudioAiModule];
+
+const PROMPT_STARTERS: AgAiPromptStarter[] = [
+  { label: "Spending per day", prompt: "Add a line chart showing how much the group spent each day." },
+  { label: "Who paid the most", prompt: "Add a bar chart of how much each person paid, highest first." },
+  { label: "Biggest expenses", prompt: "Add a table of the five most expensive expenses." },
+  { label: "Cost per person", prompt: "How much did the trip cost per person, and which category was the most expensive?" },
+];
+
 const MOBILE_QUERY = "(max-width: 767px)";
 
 // Studio only reads initialState on mount, so crossing the breakpoint remounts it with the other layout.
@@ -126,9 +149,14 @@ function useIsMobile() {
   );
 }
 
-export default function Insights({ snapshot }: { snapshot: TripSnapshot }) {
+export default function Insights({ snapshot, publicId }: { snapshot: TripSnapshot; publicId: string }) {
   const mobile = useIsMobile();
   const report = useMemo(() => buildReport(mobile), [mobile]);
+  const ai = useMemo<AgStudioProperties["ai"]>(() => {
+    const adapter = insightsAdapter(publicId);
+    // The setup hook is typed with the core API; at runtime it is the full Studio API.
+    return ({ api }) => createAiHarness(api as AgStudioApi, { adapter, promptStarters: PROMPT_STARTERS });
+  }, [publicId]);
   // Polling hands us a new snapshot object every few seconds; only rebuild the data when it changed.
   const key = JSON.stringify([snapshot.expenses, snapshot.budget, snapshot.members]);
   const data = useMemo(() => {
@@ -171,7 +199,8 @@ export default function Insights({ snapshot }: { snapshot: TripSnapshot }) {
         key={mobile ? "mobile" : "desktop"}
         data={data}
         initialState={report}
-        mode="view"
+        mode={mobile ? "view" : "edit"}
+        {...(!mobile && { modules: AI_MODULES, ai, panels: AI_PANELS })}
         theme={theme}
         style={{ height: "100%", width: "100%" }}
       />
